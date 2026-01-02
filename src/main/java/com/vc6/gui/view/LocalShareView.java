@@ -102,14 +102,29 @@ public class LocalShareView {
         // 关键：让路径标签占据所有剩余空间
         HBox.setHgrow(sharedPathLabel, Priority.ALWAYS);
 
+
+        Button openBtn = new Button();
+
+        // 创建 SVG 节点
+        openBtn.setGraphic(createIcon(SVG_FOLDER,"-color-fg-default"));
+        openBtn.getStyleClass().addAll(Styles.BUTTON_ICON); // 使用图标按钮 + 扁平样式
+        openBtn.setTooltip(new Tooltip("在资源管理器中打开"));
+        openBtn.setOnAction(e -> {
+            try {
+                String path = AppConfig.getInstance().getRootPath();
+                java.awt.Desktop.getDesktop().open(new java.io.File(path));
+            } catch (Exception ex) {
+                MessageUtils.showToast("打开文件夹失败");
+            }
+        });
+        openBtn.setMinWidth(Region.USE_PREF_SIZE);
         // 右侧按钮
-        Button setSharedBtn = new Button("设为当前浏览目录");
+        Button setSharedBtn = new Button("设为当前目录");
         setSharedBtn.getStyleClass().add(Styles.BUTTON_OUTLINED);
         setSharedBtn.setMinWidth(Region.USE_PREF_SIZE); // 防止按钮被压缩
         setSharedBtn.setOnAction(e -> handleSetCurrentAsShared());
 
-        // 注意：删除了之前的 Region spacer，因为 sharedPathLabel 现在负责占位了
-        box.getChildren().addAll(label, sharedPathLabel, setSharedBtn);
+        box.getChildren().addAll(label, sharedPathLabel, openBtn,setSharedBtn);
         return box;
     }
 

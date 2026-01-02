@@ -402,7 +402,7 @@ public class SettingsView {
         gitLink.setStyle("-fx-border-color: transparent; -fx-padding: 0;");
         gitLink.setOnAction(e -> {
             try {
-                Desktop.getDesktop().browse(java.net.URI.create("https://github.com/yourname/lan-linker"));
+                Desktop.getDesktop().browse(java.net.URI.create("https://github.com/vc6-1998/LAN-Linker"));
             } catch (Exception ex) { ex.printStackTrace(); }
         });
 
