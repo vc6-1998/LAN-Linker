@@ -1,0 +1,18 @@
+/* 让所有能点击的控件都显示手型 */
+.button,
+.toggle-button,
+.check-box,
+.hyperlink,
+.combo-box-base,
+.radio-button,
+.menu-button,
+.choice-box {
+    -fx-cursor: hand;
+}
+
+/* 如果你也想让列表行 (TableView/ListView) 悬停时变手型，加上这个 */
+.table-row-cell:filled:hover{
+
+/*.list-cell:filled:hover {*/
+    -fx-cursor: hand;
+}
