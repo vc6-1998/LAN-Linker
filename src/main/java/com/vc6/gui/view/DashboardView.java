@@ -10,6 +10,7 @@ import javafx.application.Platform;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.chart.AreaChart;
+import javafx.scene.chart.CategoryAxis;
 import javafx.scene.chart.NumberAxis;
 import javafx.scene.chart.XYChart;
 import javafx.scene.control.*;
@@ -41,6 +42,7 @@ public class DashboardView {
     private AreaChart<Number, Number> trafficChart;
     private XYChart.Series<Number, Number> uploadSeries;
     private XYChart.Series<Number, Number> downloadSeries;
+
     private Label speedLabel;
 
     private Timer monitorTimer;
@@ -108,6 +110,7 @@ public class DashboardView {
         infoBox = new VBox(10);
         infoBox.setAlignment(Pos.CENTER_LEFT); // 默认左对齐，后面会动态改
 
+        HBox.setHgrow(infoBox, Priority.ALWAYS);
         // 初始不添加任何子元素，交给 updateDashboardState 去决定
         return connectionCard;
     }
@@ -118,7 +121,7 @@ public class DashboardView {
         HBox titleBox = new HBox(20);
         titleBox.setAlignment(Pos.CENTER_LEFT);
 
-        Label chartTitle = new Label("实时流量监控");
+        Label chartTitle = new Label("实时流量监控 (MB/s)");
         chartTitle.getStyleClass().add(Styles.TEXT_BOLD);
 
         speedLabel = new Label("↑ 0 KB/s   ↓ 0 KB/s");
@@ -128,7 +131,19 @@ public class DashboardView {
 
         NumberAxis xAxis = new NumberAxis();
         xAxis.setLabel("时间");
-        xAxis.setForceZeroInRange(false);
+        xAxis.setAutoRanging(false); // 手动控制范围，实现流动效果
+        xAxis.setTickLabelFormatter(new javafx.util.StringConverter<Number>() {
+            @Override
+            public String toString(Number object) {
+                // 将秒数转换为 HH:mm:ss
+                long time = object.longValue() * 1000;
+                return new java.text.SimpleDateFormat("HH:mm:ss").format(new java.util.Date(time));
+            }
+            @Override
+            public Number fromString(String string) { return 0; }
+        });
+
+
         NumberAxis yAxis = new NumberAxis();
 
         trafficChart = new AreaChart<>(xAxis, yAxis);
@@ -247,7 +262,10 @@ public class DashboardView {
         HBox linkBox = new HBox(10);
         TextField linkField = new TextField(url);
         linkField.setEditable(false);
-        linkField.setPrefWidth(250);
+
+        linkField.setMaxWidth(Double.MAX_VALUE);
+        HBox.setHgrow(linkField, Priority.ALWAYS);
+
         linkField.setStyle("-fx-font-family: 'monospace';");
 
         Button copyBtn = new Button("复制");
@@ -277,6 +295,7 @@ public class DashboardView {
     private void startTrafficMonitor() {
         monitorTimer = new Timer(true);
         monitorTimer.schedule(new TimerTask() {
+            private final java.text.SimpleDateFormat sdf = new java.text.SimpleDateFormat("HH:mm:ss");
             @Override
             public void run() {
                 if (view.getScene() == null) return;
@@ -287,16 +306,21 @@ public class DashboardView {
                     double downloadSpeed = writeBytes / (1024.0 * 1024.0);
                     double uploadSpeed = readBytes / (1024.0 * 1024.0);
 
+
+                    long nowSeconds = System.currentTimeMillis() / 1000;
                     Platform.runLater(() -> {
-                        timeSeconds++;
-                        uploadSeries.getData().add(new XYChart.Data<>(timeSeconds, uploadSpeed));
-                        downloadSeries.getData().add(new XYChart.Data<>(timeSeconds, downloadSpeed));
-                        if (uploadSeries.getData().size() > 60) {
+                        uploadSeries.getData().add(new XYChart.Data<>(nowSeconds, uploadSpeed));
+                        downloadSeries.getData().add(new XYChart.Data<>(nowSeconds, downloadSpeed));
+
+                        // 滚动 X 轴范围 (最近 60 秒)
+                        NumberAxis xAxis = (NumberAxis) trafficChart.getXAxis();
+                        xAxis.setLowerBound(nowSeconds - 60);
+                        xAxis.setUpperBound(nowSeconds);
+
+                        // 移除旧数据 (防止内存溢出)
+                        if (uploadSeries.getData().size() > 65) {
                             uploadSeries.getData().remove(0);
                             downloadSeries.getData().remove(0);
-                            NumberAxis xAxis = (NumberAxis) trafficChart.getXAxis();
-                            xAxis.setLowerBound(timeSeconds - 60);
-                            xAxis.setUpperBound(timeSeconds);
                         }
                         String upStr = formatSpeed(readBytes);
                         String downStr = formatSpeed(writeBytes);

@@ -25,12 +25,12 @@ public class AppConfig {
     private final StringProperty quickSharePath = new SimpleStringProperty(
             new java.io.File(System.getProperty("java.io.tmpdir"), "LanLinker_Share").getAbsolutePath()
     );
-    private final LongProperty maxFileSizeMb = new SimpleLongProperty(256);
+    private final LongProperty maxFileSizeMb = new SimpleLongProperty(1024);
     private final IntegerProperty maxTextLength = new SimpleIntegerProperty(32767);
 
     // --- 外观 ---
     private final BooleanProperty isDarkMode = new SimpleBooleanProperty(true); // 默认深色
-    private final IntegerProperty uiScalePercent = new SimpleIntegerProperty(100); // 缩放比例
+    private final IntegerProperty uiScalePercent = new SimpleIntegerProperty(120); // 缩放比例
 
     private final StringProperty localShareHistory = new SimpleStringProperty("");
 

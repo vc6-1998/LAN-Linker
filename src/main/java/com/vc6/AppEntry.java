@@ -17,6 +17,9 @@ import java.net.URL;
 
 public class AppEntry extends Application {
 
+    private static final java.io.File LOCK_FILE = new java.io.File(System.getProperty("java.io.tmpdir"), "lanlinker_instance.lock");
+    private static java.io.RandomAccessFile randomAccessFile;
+    private static java.nio.channels.FileLock fileLock;
     @Override
     public void start(Stage primaryStage) {
         ConfigStore.load();
@@ -32,10 +35,23 @@ public class AppEntry extends Application {
                 getClass().getResource("/static/global.css").toExternalForm()
         );
         applyUiScale(stage.getScene().getRoot());
-        if (AppConfig.getInstance().isMinimizeToTray()) {
+
+
+
+        primaryStage.setOnCloseRequest(e -> {
+            // 1. 如果开启了托盘最小化 -> 隐藏窗口，不退出
+            if (AppConfig.getInstance().isMinimizeToTray()) {
+                e.consume(); // 阻止默认关闭
+                primaryStage.hide();
+            } else {
+                // 2. 如果没开托盘 -> 彻底自杀
+                stopApp();
+            }
+        });
+
+        if (SystemTray.isSupported()) { // 稍微改一下判断条件，始终尝试加载托盘，只在点击X时判断行为
             setupSystemTray(primaryStage);
         }
-
     }
 
     /**
@@ -75,16 +91,7 @@ public class AppEntry extends Application {
 
     private void setupSystemTray(Stage stage) {
         if (!SystemTray.isSupported()) return;
-
         Platform.setImplicitExit(false);
-        stage.setOnCloseRequest(e -> {
-            if (AppConfig.getInstance().isMinimizeToTray()) {
-                e.consume();
-                stage.hide();
-            } else {
-                stopApp();
-            }
-        });
 
         try {
             SystemTray tray = SystemTray.getSystemTray();
@@ -142,12 +149,37 @@ public class AppEntry extends Application {
     }
 
     private void stopApp() {
-        NettyServer.getInstance().stop();
+        try {
+            com.vc6.core.NettyServer.getInstance().stop();
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
         Platform.exit();
         System.exit(0);
     }
 
+    private static boolean isAppRunning() {
+        try {
+            // 尝试锁定文件
+            randomAccessFile = new java.io.RandomAccessFile(LOCK_FILE, "rw");
+            fileLock = randomAccessFile.getChannel().tryLock();
+            // 如果拿不到锁 (null)，说明被占用了
+            return fileLock == null;
+        } catch (Exception e) {
+            return true; // 出错也视为已运行，保险起见
+        }
+    }
     public static void main(String[] args) {
+
+        if (isAppRunning()) {
+            // 弹窗提示 (使用 Swing，因为此时 JavaFX 还没启动)
+            javax.swing.JOptionPane.showMessageDialog(null,
+                    "程序已在运行中！\n请检查右下角托盘图标或任务管理器。",
+                    "重复启动",
+                    javax.swing.JOptionPane.WARNING_MESSAGE);
+            System.exit(0);
+            return;
+        }
         launch(args);
     }
 }

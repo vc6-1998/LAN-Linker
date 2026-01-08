@@ -391,7 +391,7 @@ public class SettingsView {
         helpBtn.getStyleClass().add(Styles.ACCENT);
         helpBtn.setOnAction(e -> showHelpDialog());
 
-        Label appName = new Label("LAN Linker v1.0");
+        Label appName = new Label("LAN Linker v1.1");
         appName.getStyleClass().add(Styles.TITLE_4);
 
         TextFlow desc = new TextFlow(

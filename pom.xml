@@ -6,7 +6,7 @@
 
     <groupId>com.vc6</groupId>
     <artifactId>LAN-Linker</artifactId>
-    <version>1.0-SNAPSHOT</version>
+    <version>1.1</version>
     <name>javafx</name>
     <packaging>jar</packaging>
 
