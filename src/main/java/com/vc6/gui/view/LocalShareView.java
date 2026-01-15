@@ -7,6 +7,7 @@ import com.vc6.model.AppConfig;
 import com.vc6.model.FileItem;
 import com.vc6.model.ServerMode; // 确保导入 ServerMode
 import com.vc6.utils.MessageUtils;
+import javafx.application.Platform;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import javafx.geometry.Insets;
@@ -40,13 +41,15 @@ public class LocalShareView {
         this.view = new BorderPane();
         initView();
 
-        // 初始化加载配置
-        String configPath = AppConfig.getInstance().getRootPath();
-        File initialDir = new File(configPath);
-        if (!initialDir.exists() || !initialDir.isDirectory()) {
-            initialDir = new File(System.getProperty("user.home"));
-        }
-        refreshFileList(initialDir);
+        Platform.runLater(() -> {
+            String configPath = AppConfig.getInstance().getRootPath();
+            File initialDir = new File(configPath);
+            if (!initialDir.exists() || !initialDir.isDirectory()) {
+                initialDir = new File(System.getProperty("user.home"));
+            }
+            refreshFileList(initialDir);
+        });
+
     }
 
     private void initView() {

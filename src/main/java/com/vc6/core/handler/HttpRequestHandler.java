@@ -18,8 +18,6 @@ import io.netty.handler.codec.http.multipart.InterfaceHttpData;
 import javafx.application.Platform;
 
 import java.io.File;
-import java.net.URLDecoder;
-import java.nio.charset.StandardCharsets;
 
 public class HttpRequestHandler extends SimpleChannelInboundHandler<FullHttpRequest> {
 
@@ -29,9 +27,7 @@ public class HttpRequestHandler extends SimpleChannelInboundHandler<FullHttpRequ
     @Override
     protected void channelRead0(ChannelHandlerContext ctx, FullHttpRequest req) throws Exception {
         String rawUri = req.uri();
-        String uriPath = new QueryStringDecoder(rawUri).path();
-        String decodedUri = URLDecoder.decode(uriPath, StandardCharsets.UTF_8);
-
+        String decodedUri = new QueryStringDecoder(rawUri).path();
 
         // 1. 静态资源拦截
         if (rawUri.startsWith("/static/")) {
@@ -50,9 +46,9 @@ public class HttpRequestHandler extends SimpleChannelInboundHandler<FullHttpRequ
         }
 
         // 3. 处理登录请求
-        if ("/login".equals(decodedUri)) {
+        if ("/login".equals(rawUri)) {
             if (req.method() == HttpMethod.POST) {
-                handleLogin(ctx, req, user);
+                handleLogin(ctx, req);
             } else {
                 fileService.sendHtml(ctx, HtmlGenerator.generateLoginPage(null, user.getNickname()));
             }
@@ -71,7 +67,7 @@ public class HttpRequestHandler extends SimpleChannelInboundHandler<FullHttpRequ
         }
 
         // 5. 日志与 Favicon 过滤
-        if ("/favicon.ico".equals(uriPath)) {
+        if ("/favicon.ico".equals(rawUri)) {
             fileService.sendError(ctx, HttpResponseStatus.NOT_FOUND, "");
             return;
         }
@@ -79,15 +75,14 @@ public class HttpRequestHandler extends SimpleChannelInboundHandler<FullHttpRequ
             LogPanel.log("[Req] " + getCurrentUserID(ctx) + ": " + req.method() + " " + rawUri);
         }
         // 6. 核心业务处理
-        processFileRequest(ctx, decodedUri, req,user);
+        processFileRequest(ctx, req);
     }
 
-    private void processFileRequest(ChannelHandlerContext ctx, String uri, FullHttpRequest req, UserSession user) {
-        ServerMode mode = AppConfig.getInstance().getServerMode();
+    private void processFileRequest(ChannelHandlerContext ctx, FullHttpRequest req) {
+        // 处理 POST 数据
+        QueryStringDecoder qsd = new QueryStringDecoder(req.uri());
+        String uri = qsd.path();
 
-        String nickname = user.getNickname();
-
-        // A. 处理 POST 数据
         if (req.method() == HttpMethod.POST) {
             if (!AppConfig.getInstance().isAllowUpload()) {
                 fileService.sendError(ctx, HttpResponseStatus.FORBIDDEN, "Write Denied");
@@ -101,14 +96,13 @@ public class HttpRequestHandler extends SimpleChannelInboundHandler<FullHttpRequ
             return;
         }
 
-        // B. 处理 API 指令 (删除)
-        QueryStringDecoder qsd = new QueryStringDecoder(req.uri());
+        //处理 API 指令 (删除)
         if (qsd.parameters().containsKey("action")) {
             if (!AppConfig.getInstance().isAllowUpload()) {
                 fileService.sendError(ctx, HttpResponseStatus.FORBIDDEN, "Write Denied");
                 return;
             }
-            String action = qsd.parameters().get("action").get(0);
+            String action = qsd.parameters().get("action").getFirst();
             if ("delete".equals(action)) {
                 fileService.handleDelete(ctx, uri);
                 return;
@@ -118,32 +112,36 @@ public class HttpRequestHandler extends SimpleChannelInboundHandler<FullHttpRequ
             if ("mkdir".equals(action)) {
                 String name = "";
                 if (qsd.parameters().containsKey("name")) {
-                    name = qsd.parameters().get("name").get(0);
+                    name = qsd.parameters().get("name").getFirst();
                 }
                 // 解码文件夹名 (防止中文乱码)
-                name = URLDecoder.decode(name, StandardCharsets.UTF_8);
                 fileService.handleMkdir(ctx, uri, name);
                 return;
             }
 
         }
 
-        // C. 处理页面渲染
-        // 1. 远程模式根目录
-        if (mode == ServerMode.REMOTE_DISK && "/".equals(uri)) {
-            fileService.sendHtml(ctx, HtmlGenerator.generateDriveList(nickname));
-            return;
-        }
-        // 2. 快传模式根目录
-        if (mode == ServerMode.QUICK_SHARE && "/".equals(uri)) {
-            File root = fileService.resolveFile("/");
-            if (!root.exists()) root.mkdirs();
-            fileService.sendHtml(ctx, HtmlGenerator.generateQuickSharePage(root, nickname));
-            return;
+        ServerMode mode = AppConfig.getInstance().getServerMode();
+        UserSession user = ctx.channel().attr(AuthService.SESSION_KEY).get();
+        String nickname = user.getNickname();
+
+        //处理特殊根目录
+        if ("/".equals(uri)) {
+            if (mode == ServerMode.QUICK_SHARE) {
+                File root = fileService.resolveFile("/");
+                if (!root.exists()) root.mkdirs();
+                fileService.sendHtml(ctx, HtmlGenerator.generateQuickSharePage(root, nickname));
+                return;
+            }
+            if (mode == ServerMode.REMOTE_DISK) {
+                fileService.sendHtml(ctx, HtmlGenerator.generateDriveList(nickname));
+                return;
+            }
         }
 
-        // 3. 通用浏览与下载
+        //通用文件处理
         File file = fileService.resolveFile(uri);
+
         if (file == null || !file.exists()) {
             fileService.sendRedirect(ctx, "/");
             return;
@@ -156,7 +154,8 @@ public class HttpRequestHandler extends SimpleChannelInboundHandler<FullHttpRequ
         }
     }
 
-    private void handleLogin(ChannelHandlerContext ctx, FullHttpRequest req, UserSession user) {
+    private void handleLogin(ChannelHandlerContext ctx, FullHttpRequest req) {
+        UserSession user = ctx.channel().attr(AuthService.SESSION_KEY).get();
         HttpPostRequestDecoder decoder = new HttpPostRequestDecoder(new DefaultHttpDataFactory(false), req);
         try {
             String inputPin = "";

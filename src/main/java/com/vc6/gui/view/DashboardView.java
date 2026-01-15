@@ -168,95 +168,113 @@ public class DashboardView {
     // ================= 状态更新逻辑 (核心) =================
 
     private void updateDashboardState(ServerMode mode) {
-        Platform.runLater(() -> {
-            if (mode == ServerMode.STOPPED) {
-                // --- 停止状态：显示预检信息 ---
+        if (mode == ServerMode.STOPPED) {
+            // 停止状态：虽然也要查 IP，但我们可以在 renderDiagnosticView 内部做异步
+            // 这里先切 UI 结构
+            Platform.runLater(() -> {
                 statusLabel.setText("已停止");
                 statusIndicator.setStyle("-fx-fill: -color-danger-fg;");
                 stopBtn.setDisable(true);
-
-                // 切换卡片内容
-                renderDiagnosticView();
-
-            } else {
-                // --- 运行状态：显示连接信息 ---
+                renderDiagnosticView(); // 调用下面的异步版方法
+            });
+        } else {
+            // 运行状态：查 IP + 生成二维码
+            Platform.runLater(() -> {
                 statusLabel.setText("运行中 - " + mode.getDescription());
                 statusIndicator.setStyle("-fx-fill: -color-success-fg;");
                 stopBtn.setDisable(false);
 
-                // 切换卡片内容
-                renderRunningView();
-            }
-        });
+                // 先显示个“加载中”占位
+                connectionCard.getChildren().clear();
+                connectionCard.getChildren().add(new Label("正在生成连接信息..."));
+            });
+
+            // 【异步加载连接信息】
+            new Thread(() -> {
+                String ip = IpUtils.getLocalIp();
+                int port = AppConfig.getInstance().getPort();
+                String url = "http://" + ip + ":" + port;
+                Image qr = QrCodeGenerator.generate(url, 200);
+
+                Platform.runLater(() -> renderRunningView(ip, url, qr)); // 查完再渲染
+            }).start();
+        }
     }
 
     /**
      * 渲染状态 1: 预检模式 (Pre-flight Check)
      */
     private void renderDiagnosticView() {
-        // 1. 布局调整：只保留 infoBox，移除二维码，且全居中
+        // 1. 先把架子搭好 (显示“检测中...”)
         connectionCard.getChildren().clear();
         connectionCard.getChildren().add(infoBox);
-        infoBox.setAlignment(Pos.CENTER); // 【关键】内容居中对齐
-
+        infoBox.setAlignment(Pos.CENTER);
         infoBox.getChildren().clear();
-        // 删掉了 infoTitle (网络环境预检)
 
-        // 2. IP 显示 (加大，加粗)
-        String ip = IpUtils.getLocalIp();
-        Label ipLabel = new Label("IP: "+ip);
+        Label loadingLabel = new Label("正在检测网络环境...");
+        loadingLabel.setStyle("-fx-font-size: 16px; -fx-text-fill: -color-fg-muted;");
+        infoBox.getChildren().add(loadingLabel);
 
-        // 使用 TITLE_1 超大字体
-        ipLabel.getStyleClass().addAll(Styles.TITLE_1, Styles.ACCENT);
+        // 2. 启动后台线程查 IP 和 端口
+        new Thread(() -> {
+            String ip = IpUtils.getLocalIp(); // 耗时
+            String host = IpUtils.getHostName(); // 耗时
+            int port = AppConfig.getInstance().getPort();
+            boolean available = IpUtils.isPortAvailable(port); // 耗时
 
-        Label hostLabel = new Label("Host: " + IpUtils.getHostName());
-        hostLabel.getStyleClass().add(Styles.TEXT_MUTED);
+            // 3. 查完回 UI 线程填数据
+            Platform.runLater(() -> {
+                // 如果用户已经切换界面或者启动服务了，就别刷新了
+                if (AppConfig.getInstance().getServerMode() != ServerMode.STOPPED) return;
 
-        // 3. 端口检测行 (居中显示)
-        HBox portBox = new HBox(15);
-        portBox.setAlignment(Pos.CENTER);
+                infoBox.getChildren().clear(); // 清掉“检测中”
 
-        int port = AppConfig.getInstance().getPort();
-        Label portLabel = new Label("端口: " + port);
-        portLabel.getStyleClass().add(Styles.TEXT_BOLD);
+                // --- 下面是你原来的 UI 代码，直接搬进来 ---
+                Label ipLabel = new Label("IP: " + ip);
+                ipLabel.getStyleClass().addAll(Styles.TITLE_1, Styles.ACCENT);
 
-        Label portStatus = new Label("检测中...");
-        boolean available = IpUtils.isPortAvailable(port);
-        if (available) {
-            portStatus.setText("✔ 端口可用");
-            portStatus.setStyle("-fx-text-fill: -color-success-fg;");
-        } else {
-            portStatus.setText("✘ 端口被占用");
-            portStatus.setStyle("-fx-text-fill: -color-danger-fg;");
-        }
+                Label hostLabel = new Label("Host: " + host);
+                hostLabel.getStyleClass().add(Styles.TEXT_MUTED);
 
-        // 刷新按钮 (放旁边)
-        Button refreshBtn = new Button("刷新");
-        refreshBtn.getStyleClass().add(Styles.SMALL);
-        refreshBtn.setOnAction(e -> renderDiagnosticView());
+                HBox portBox = new HBox(15);
+                portBox.setAlignment(Pos.CENTER);
 
-        portBox.getChildren().addAll(portLabel, portStatus, refreshBtn);
+                Label portLabel = new Label("端口: " + port);
+                portLabel.getStyleClass().add(Styles.TEXT_BOLD);
 
-        infoBox.getChildren().addAll(ipLabel, hostLabel, portBox);
+                Label portStatus = new Label();
+                if (available) {
+                    portStatus.setText("✔ 端口可用");
+                    portStatus.setStyle("-fx-text-fill: -color-success-fg;");
+                } else {
+                    portStatus.setText("✘ 端口被占用");
+                    portStatus.setStyle("-fx-text-fill: -color-danger-fg;");
+                }
+
+                Button refreshBtn = new Button("刷新");
+                refreshBtn.getStyleClass().add(Styles.SMALL);
+                // 刷新就是重新调一次自己
+                refreshBtn.setOnAction(e -> renderDiagnosticView());
+
+                portBox.getChildren().addAll(portLabel, portStatus, refreshBtn);
+                infoBox.getChildren().addAll(ipLabel, hostLabel, portBox);
+            });
+        }).start();
     }
 
     /**
      * 渲染状态 2: 运行模式 (Connection Info)
      */
-    private void renderRunningView() {
+    private void renderRunningView(String ip, String url, Image qr) {
         // 1. 布局调整：恢复二维码 + 信息框
         connectionCard.getChildren().clear();
         connectionCard.getChildren().addAll(qrView, infoBox);
         infoBox.setAlignment(Pos.CENTER_LEFT); // 恢复左对齐
-
         infoBox.getChildren().clear();
+        qrView.setImage(qr);
 
         Label title = new Label("连接方式"); // 这个标题保留，或者也可以删掉看你喜好
         title.getStyleClass().add(Styles.TITLE_4);
-
-        String ip = IpUtils.getLocalIp();
-        int port = AppConfig.getInstance().getPort();
-        String url = "http://" + ip + ":" + port;
 
         // 链接框
         HBox linkBox = new HBox(10);
@@ -281,8 +299,6 @@ public class DashboardView {
 
         infoBox.getChildren().addAll(title, linkBox, hint);
 
-        Image qr = QrCodeGenerator.generate(url, 200);
-        qrView.setImage(qr);
     }
 
     private void handleStopAll() {

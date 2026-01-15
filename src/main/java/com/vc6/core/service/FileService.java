@@ -75,7 +75,6 @@ public class FileService {
                 sendRedirect(ctx, uri);
             }
         } catch (Exception e) {
-            LogPanel.log("[Service] "+getCurrentUserID(ctx) +": 文件上传失败: " + e.getMessage());
             sendError(ctx, HttpResponseStatus.INTERNAL_SERVER_ERROR, e.getMessage());
         } finally {
             decoder.destroy();
@@ -87,6 +86,7 @@ public class FileService {
             sendRedirect(ctx, uri);
             return;
         }
+        text = text.replace("\r\n", "\n");
         int maxLen = AppConfig.getInstance().getMaxTextLength();
         if (text.length() > maxLen) {
             // 如果超长，可以选择截断，或者报错
@@ -131,6 +131,8 @@ public class FileService {
             ctx.write(resp);
             ctx.write(new io.netty.handler.stream.ChunkedFile(raf, 0, len, 8192), ctx.newProgressivePromise());
             ctx.writeAndFlush(LastHttpContent.EMPTY_LAST_CONTENT);
+            LogPanel.log("[Service] "+getCurrentUserID(ctx) +": 访问文件: " + file.getName());
+
         } catch (Exception e) {
             sendError(ctx, HttpResponseStatus.INTERNAL_SERVER_ERROR, "Download error");
         }
@@ -226,7 +228,6 @@ public class FileService {
         File file = resolveFile(uri);
         // 调用递归删除
         if (file.exists() && deleteRecursive(file)) {
-            LogPanel.log("[Service] "+getCurrentUserID(ctx) +": 文件已删除: " + file.getName());
 
             if (AppConfig.getInstance().getServerMode() == ServerMode.QUICK_SHARE) {
                 sendRedirect(ctx, "/");
@@ -238,6 +239,7 @@ public class FileService {
             if (parentUri.matches("^/[a-zA-Z]:$")) parentUri += "/";
 
             sendRedirect(ctx, parentUri);
+            LogPanel.log("[Service] "+getCurrentUserID(ctx) +": 文件已删除: " + file.getName());
         } else {
             sendError(ctx, HttpResponseStatus.INTERNAL_SERVER_ERROR, "Delete failed");
         }
@@ -272,4 +274,7 @@ public class FileService {
 
         return user.getUserId();
     }
+
 }
+
+

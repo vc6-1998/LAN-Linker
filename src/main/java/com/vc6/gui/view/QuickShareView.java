@@ -61,7 +61,8 @@ public class QuickShareView {
         VBox.setVgrow(feedList, Priority.ALWAYS);
 
         setupDragAndDrop(view); // 绑定拖拽到整个视图
-        refreshFeed(); // 初始加载
+        Platform.runLater(() -> {refreshFeed();});
+         // 初始加载
 
         VBox centerBox = new VBox(10);
         centerBox.setPadding(new Insets(20, 0, 20, 0));

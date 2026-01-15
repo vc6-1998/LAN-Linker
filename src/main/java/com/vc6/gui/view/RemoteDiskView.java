@@ -5,6 +5,7 @@ import com.vc6.gui.component.ModeActionButton;
 import com.vc6.gui.component.SimpleToggleSwitch;
 import com.vc6.model.AppConfig;
 import com.vc6.model.ServerMode;
+import javafx.application.Platform;
 import javafx.beans.property.SimpleStringProperty;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
@@ -47,8 +48,9 @@ public class RemoteDiskView {
         labelBox.getChildren().addAll(driveLabel, refreshBtn);
 
         driveTable = createDriveTable();
-        refreshDriveList();
-
+        Platform.runLater(() -> {
+                    refreshDriveList();
+                });
         centerBox.getChildren().addAll(labelBox, driveTable);
         view.setCenter(centerBox);
 

@@ -3,10 +3,12 @@ package com.vc6.core.service;
 import com.vc6.model.AppConfig;
 
 import java.io.File;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.text.SimpleDateFormat;
 import java.util.Arrays;
 import java.util.Date;
+import org.apache.commons.text.StringEscapeUtils;
 
 public class HtmlGenerator {
 
@@ -42,9 +44,9 @@ public class HtmlGenerator {
                 border: 1px solid #222;
                 font-size: 14px;
                 color: #e6edf3;
-                white-space: pre-wrap;       /* 保留换行符 */
-                word-break: break-word;      /* 单词间换行 */
-                overflow-wrap: anywhere;     /* 终极强制换行 */
+                white-space: pre-wrap;
+                word-break: break-word;
+                overflow-wrap: anywhere;
             }
             #progress-fixed { position: fixed; bottom: 25px; right: 25px; width: 300px; z-index: 2000; display: none; }
             .modal-content { background-color: #0d1117; border: 1px solid var(--border-color); }
@@ -53,11 +55,11 @@ public class HtmlGenerator {
             #drop-overlay {
                 position: fixed;\s
                 top: 0; left: 0;\s
-                width: 100vw; height: 100vh; /* 使用 vw/vh 确保真正的全屏 */
-                background: rgba(13, 17, 23, 0.85); /* 稍微深一点，更有遮罩感 */
+                width: 100vw; height: 100vh;
+                background: rgba(13, 17, 23, 0.85);
                 border: 4px dashed var(--accent);
                 z-index: 9999;
-                display: none; /* 由 JS 切换为 flex */
+                display: none;
                 pointer-events: none;
                 align-items: center;\s
                 justify-content: center;
@@ -74,7 +76,6 @@ public class HtmlGenerator {
                  font-family: 'Consolas', monospace;
                  font-size: 14px;
                  color: #e6edf3;
-                 /* 【新增】强制打断长单词，防止撑破容器 */
                  word-break: break-all;
                  overflow-wrap: anywhere;
              }
@@ -114,16 +115,13 @@ public class HtmlGenerator {
                  });
              }
             window.onpopstate = () => location.reload();
-            function decode(str) {
-                return new TextDecoder().decode(Uint8Array.from(atob(str), c => c.charCodeAt(0)));
-            }
             function showToast(msg) {
                 const t = document.getElementById('web-toast');
                 t.innerText = msg;
                 t.classList.add('show');
                 setTimeout(() => t.classList.remove('show'), 2000);
             }
-            function execCopy(text) {
+            function copy(text) {
                 if (navigator.clipboard && window.isSecureContext) {
                     navigator.clipboard.writeText(text).then(() => showToast('已复制到剪贴板'));
                 } else {
@@ -141,41 +139,46 @@ public class HtmlGenerator {
                     document.body.removeChild(ta);
                 }
             }
-            function copyText(b64) {
-                 execCopy(decode(b64));
-             }
-             function copyRaw(text) {
-                 execCopy(text);
-             }
-            function preview(urlB64, type, nameB64) {
-
-                 const url = decode(urlB64);
-                 const name = decode(nameB64);
+            function preview(url, type, name, size) {
                  const modal = new bootstrap.Modal(document.getElementById('previewModal'));
+                 const header = document.querySelector('#previewModal .modal-header');
                  const footer = document.querySelector('#previewModal .modal-footer');
                  const body = document.getElementById('previewBody');
+    
+                 const oldHeaderBtn = document.getElementById('header-copy-btn');
+                 if(oldHeaderBtn) oldHeaderBtn.remove();
+
                  const dlBtn = document.getElementById('dl-btn');
                  dlBtn.href = url;
                  dlBtn.setAttribute('download', name);
-                 
-                 const oldCopy = document.getElementById('preview-copy-btn');
-                 if (oldCopy) oldCopy.remove();
- 
+
                  if (type === 'img') {
                      body.innerHTML = `<img src="${url}" class="img-fluid rounded">`;
                  } else if (type === 'txt') {
-                     fetch(url).then(r => r.text()).then(t => {
-                      // 渲染内容
-                      body.innerHTML = `<pre><code>${t.replace(/</g, '&lt;')}</code></pre>`;
-                     \s
-                      // 创建按钮 (此时 t 是可用的)
-                      const copyBtn = document.createElement('button');
-                      copyBtn.id = 'preview-copy-btn';
-                      copyBtn.className = 'btn btn-sm btn-outline-secondary me-auto';
-                      copyBtn.innerHTML = '<i class="bi bi-clipboard me-1"></i>复制全文';
-                      copyBtn.onclick = () => copyRaw(t); // 绑定 t
-                      footer.prepend(copyBtn);
-                  });
+                     if (size > 100 * 1024)
+                     {
+                        body.innerHTML = `
+                         <div class="py-5 text-center">
+                             <i class="bi bi-file-earmark-x fs-1 text-secondary"></i>
+                             <p class="mt-3 text-secondary">文本文件过大，不支持预览</p>
+                             <p class="small text-muted">请点击右侧下载图标或下方按钮下载后查看</p>
+                         </div>`;
+                     }
+                     else
+                     {
+                         fetch(url).then(r => r.text()).then(t => {
+                          // 渲染内容
+                          body.innerHTML = `<pre><code>${t.replace(/</g, '&lt;')}</code></pre>`;
+        
+                          // 创建按钮 (此时 t 是可用的)
+                          const copyBtn = document.createElement('button');
+                          copyBtn.id = 'header-copy-btn';
+                          copyBtn.className = 'btn btn-sm btn-outline-primary ms-auto';
+                          copyBtn.innerHTML = '<i class="bi bi-clipboard"></i>复制';
+                          copyBtn.onclick = () => copy(t); // 绑定 t
+                          header.insertBefore(copyBtn, header.lastElementChild);
+                      });
+                     }
                  } else {
                      body.innerHTML = `
                          <div class="py-5 text-center">
@@ -189,12 +192,6 @@ public class HtmlGenerator {
             async function doUpload(fileList) {
                   if (!fileList.length) return;
                   const maxBytes = window.MAX_FILE_SIZE_MB * 1024 * 1024;
-                  for (let f of fileList) {
-                      if (f.size > maxBytes) {
-                          alert(`文件太大了！\\n"${f.name}"\\n大小: ${(f.size/1024/1024).toFixed(2)} MB\\n限制: ${window.MAX_FILE_SIZE_MB} MB`);
-                          return; // 发现一个超标的，直接中止全部上传
-                      }
-                  }
                   const panel = document.getElementById('progress-fixed');
                   const bar = document.getElementById('task-bar');
                   const percent = document.getElementById('task-percent');
@@ -206,7 +203,11 @@ public class HtmlGenerator {
                   for (let i = 0; i < fileList.length; i++) {
                       const file = fileList[i];
                       nameLabel.innerText = `(${i + 1}/${fileList.length}) ${file.name}`;
-                     \s
+                      console.log(file.size);
+                      if (file.size > maxBytes) {
+                          alert(`文件大小超出限制！\\n"${file.name}"\\n当前文件大小: ${(file.size/1024/1024).toFixed(2)} MB\\n限制: ${window.MAX_FILE_SIZE_MB} MB`);
+                          continue; 
+                      }
                       // 等待单个文件上传完成
                       await new Promise((resolve, reject) => {
                           const fd = new FormData();
@@ -226,18 +227,50 @@ public class HtmlGenerator {
                               }
                           };
                           xhr.onload = () => resolve();
-                          xhr.onerror = () => reject();
-                          xhr.send(fd);
+                          xhr.onerror = () => {
+                              console.warn("XHR Error:", file.name);
+                              alert(file.name + ' 上传失败！不允许上传文件夹！');
+                              resolve(); 
+                          };
+                          try {
+                              xhr.send(fd);
+                          } catch (e) {
+                              console.warn("Upload blocked:", e);
+                              panel.style.display = 'none';
+                              alert(file.name + ' 上传失败！');
+                              resolve(); 
+                          }
                       });
                   }
   
                   // 全部完成后刷新
-                  nameLabel.innerText = "全部上传完成！";
+
                   setTimeout(() => {
                       navigate(window.location.href);
                       panel.style.display = 'none';
                   }, 1000);
               }
+              
+            function checkSubmit(e) {
+                if (e.ctrlKey && e.key === 'Enter') {
+                    e.target.form.submit();
+                }
+            }
+            function checkLen(el) {
+                const len = el.value.length;
+                const max = window.MAX_TEXT_LEN;
+                const count = document.getElementById('char-count');
+                const btn = document.getElementById('msg-btn');
+                count.innerText = len + " / " + max;
+                if (len > max) {
+                    count.className = 'text-danger fw-bold small'; // 超出变红
+                    btn.disabled = true; // 禁用按钮
+                } else {
+                    count.className = 'text-secondary small'; // 正常灰色
+                    btn.disabled = false; // 启用按钮
+                }
+            }
+              
             function showMkdir() {
                 const m = new bootstrap.Modal(document.getElementById('mkdirModal'));
                 const input = document.getElementById('mkdirInput');
@@ -246,20 +279,19 @@ public class HtmlGenerator {
                 // 自动聚焦 (延迟一下等待模态框动画)
                 setTimeout(() => input.focus(), 500);
             }
-
-            // 【新增】提交新建文件夹
             function submitMkdir() {
                 const name = document.getElementById('mkdirInput').value;
+                
                 if (name) {
+                    const invalid = /[<>:"/\\\\|?*]/;
+                    if (invalid.test(name)) {
+                        alert("文件名不能包含以下字符：< > : \\" / \\\\ | ? *");
+                        return;
+                    }
                     const modal = bootstrap.Modal.getInstance(document.getElementById('mkdirModal'));
                     modal.hide();
                     // 发送请求
                     navigate(window.location.pathname + "?action=mkdir&name=" + encodeURIComponent(name));
-                }
-            }
-            function checkSubmit(e) {
-                if (e.ctrlKey && e.key === 'Enter') {
-                    e.target.form.submit();
                 }
             }
             document.getElementById('mkdirInput').addEventListener('keypress', function (e) {
@@ -389,6 +421,7 @@ public class HtmlGenerator {
     private static String getFoot() {
 
         long maxMb = AppConfig.getInstance().getMaxFileSizeMb();
+        long maxLen = AppConfig.getInstance().getMaxTextLength();
         return String.format("""
             </div>
             
@@ -428,7 +461,8 @@ public class HtmlGenerator {
                 <div class="modal-footer p-2"><a id="dl-btn" class="btn btn-sm btn-primary px-3" download>下载原文件</a></div>
             </div></div></div>
             <script>
-                window.MAX_FILE_SIZE_MB = %d;\s
+                window.MAX_FILE_SIZE_MB = %d;
+                window.MAX_TEXT_LEN = %d;
             </script>
             <footer class="text-center py-4 mt-5 text-secondary" style="font-size: 12px; opacity: 0.6;">
                 <hr class="border-secondary mb-3 opacity-25">
@@ -436,7 +470,7 @@ public class HtmlGenerator {
                 <div class="mt-1">Designed for Local Network High-Speed Transfer</div>
             </footer>
             <script src="/static/bootstrap.bundle.min.js"></script>
-            """ + CUSTOM_JS + "</body></html>", maxMb);
+            """ + CUSTOM_JS + "</body></html>", maxMb, maxLen);
     }
 
     // ================= 公开页面方法 =================
@@ -466,17 +500,23 @@ public class HtmlGenerator {
 
     public static String generateQuickSharePage(File dir, String nickname) {
         StringBuilder buf = new StringBuilder();
-        buf.append(getHead("极速快传",nickname));
+        buf.append(getHead("极速快传", nickname));
 
         // 顶部输入框 (完全保留你的代码)
         buf.append("""
             <div class="card p-3 mb-4 shadow-sm">
                 <form action="/api/text" method="post" class="input-group mb-3">
-                    <textarea name="content" class="form-control bg-dark text-white border-secondary"
-                        placeholder="发送文本消息..." rows="2" required onkeydown="checkSubmit(event)"></textarea>
-                    <button class="btn btn-primary" type="submit" title="Ctrl+Enter 发送">
-                        <i class="bi bi-send-fill"></i>
-                    </button>
+        
+                <textarea name="content" class="form-control bg-dark text-white border-secondary"\s
+                          placeholder="发送文本消息 (支持 Ctrl+Enter)..." rows="2" required\s
+                          onkeydown="checkSubmit(event)" oninput="checkLen(this)"></textarea>
+        
+                <div class="d-flex justify-content-between align-items-center">
+                    <span id="char-count" class="text-secondary small">0 / --</span>
+                     <button id="msg-btn" class="btn btn-primary" type="submit" title="Ctrl+Enter 发送">
+                    <i class="bi bi-send-fill"></i></button>
+                </div>
+        
                 </form>
                 <div class="text-center py-2 border-secondary border-dashed rounded" style="border: 2px dashed #333; cursor:pointer;" onclick="document.getElementById('fi').click()">
                     <i class="bi bi-cloud-arrow-up fs-3 text-secondary"></i><br><small class="text-secondary">点击或拖拽文件上传</small>
@@ -495,61 +535,8 @@ public class HtmlGenerator {
         File[] files = dir.listFiles();
         if (files != null) {
             Arrays.sort(files, (f1, f2) -> Long.compare(f2.lastModified(), f1.lastModified()));
-            SimpleDateFormat sdf = new SimpleDateFormat("HH:mm:ss");
-
             for (File f : files) {
-                String time = sdf.format(new Date(f.lastModified()));
-                String name = f.getName();
-
-                String delAction = "javascript:navigate('/" + name.replace("'", "\\'") + "?action=delete')";
-
-                if (name.endsWith(".lanmsg")) {
-                    // --- 文本模式 ---
-                    String fullText = "";
-                    try { fullText = Files.readString(f.toPath()); } catch(Exception e){}
-
-                    // 1. 截断显示
-                    String displayText = fullText.trim();
-                    if (displayText.length() > 200) displayText = displayText.substring(0, 200) + "...";
-                    String[] lines = displayText.split("\n");
-                    if (lines.length > 5) displayText = String.join("\n", Arrays.copyOf(lines, 5)) + "...";
-
-                    // 2. 准备参数
-                    String safeDisplay = escapeHtml(displayText);
-
-                    // 【核心修改】全部转 Base64
-                    String b64FullText = toBase64(fullText);
-                    String b64Name = toBase64("text.txt");
-                    String b64Url = toBase64("/" + name); // 这里的 URL 其实就是个标识，预览时用 fetch
-
-                    // 3. 生成 HTML
-                    String icon = "bi-chat-left-text-fill text-warning";
-                    String contentHtml = String.format("<div class='text-clamp'>%s</div>", safeDisplay);
-
-                    // 【关键】JS 调用改成 Base64 版
-                    String mainAction = String.format("onclick=\"preview('%s', 'txt', '%s')\"", b64Url, b64Name);
-                    String rightBtn = String.format("<button onclick=\"copyText('%s')\" class='btn-action border-0 bg-transparent'><i class='bi bi-clipboard'></i></button>", b64FullText);
-
-                    // 渲染行
-                    buf.append(String.format("""
-                        <div class="list-group-item d-flex align-items-start py-3">
-                            <i class="bi %s fs-4 me-3 mt-1 flex-shrink-0"></i>
-                            <div class="flex-grow-1 min-width-0" style="cursor:pointer" %s>
-                                %s
-                            </div>
-                            <div class="ms-3 d-flex flex-column align-items-end gap-2 flex-shrink-0">
-                                <small class="text-secondary" style="font-size:11px">%s</small>
-                                <div class="d-flex gap-2">
-                                    %s
-                                    <a href="%s" class="btn-action btn-del" onclick="return confirm('确定删除？')"><i class="bi bi-trash3"></i></a>
-                                </div>
-                            </div>
-                        </div>
-                    """, icon, mainAction, contentHtml, time, rightBtn, delAction));
-
-                } else {
-                    appendFileRow(buf, f, "");
-                }
+                appendFileRow(buf, f, "");
             }
         }
         buf.append(getFoot());
@@ -596,53 +583,85 @@ public class HtmlGenerator {
     // --- 工具类方法 ---
 
     private static void appendFileRow(StringBuilder buf, File f, String baseUri) {
+
         String name = f.getName();
         String rawHref = (baseUri.endsWith("/") ? baseUri : baseUri + "/") + name;
         if (!rawHref.startsWith("/")) rawHref = "/" + rawHref;
+        String href = encodeUrl(rawHref);
+        String safeName = StringEscapeUtils.escapeHtml4(StringEscapeUtils.escapeEcmaScript(name));
+        String time = new SimpleDateFormat("yyyy-MM-dd  HH:mm:ss").format(new Date(f.lastModified()));
 
-        String href = encodeUrl(rawHref); // URL 编码后的链接
+        if (name.endsWith(".lanmsg")) {
+            // --- 文本模式 ---
+            String fullText = "";
+            try { fullText = Files.readString(f.toPath()); } catch(Exception ignored){}
 
-        // 【核心修改】全部转成 Base64
-        String b64Href = toBase64(href);
-        String b64Name = toBase64(name);
-        String ext = getExt(name);
+            String displayText = fullText.trim();
+            if (displayText.length() > 200) displayText = displayText.substring(0, 200) + "...";
+            String[] lines = displayText.split("\n");
+            if (lines.length > 5) displayText = String.join("\n", Arrays.copyOf(lines, 5)) + "...";
 
-        // 显示用的 HTML (依然需要 escapeHtml，这是为了防止 < > 破坏页面布局)
-        String safeNameHTML = escapeHtml(name);
+            String safeFullText = StringEscapeUtils.escapeHtml4(StringEscapeUtils.escapeEcmaScript(fullText));
+            String safeDisplay = StringEscapeUtils.escapeHtml4(displayText);
 
-        String icon = f.isDirectory() ? "bi-folder-fill text-warning" : "bi-file-earmark-text text-secondary";
-        String time = new SimpleDateFormat("MM-dd HH:mm").format(new Date(f.lastModified()));
-        String size = f.isDirectory() ? "" : formatSize(f.length());
+            String icon = "bi-chat-left-text-fill text-warning";
+            String contentHtml = String.format("<div class='text-clamp'>%s</div>", safeDisplay);
 
-        // 【关键】JS 调用全部传 Base64
-        String action = f.isDirectory() ?
-                String.format("href='javascript:void(0)' onclick='navigate(\"%s\")'", href) :
-                String.format("href='javascript:void(0)' onclick=\"preview('%s', '%s', '%s')\"", b64Href, ext, b64Name);
+            String length = String.valueOf(fullText.length());
+            String metaHtml = String.format("<div class=\"file-meta text-truncate\">%s &nbsp; %s 字</div>",time,length);
 
-        // 删除按钮也用 Base64 传文件名给 confirm？或者简单处理
-        // 为了省事，confirm 里的文件名我们还是用 escapeJs，因为这只是弹窗提示，不涉及复杂逻辑
-        String safeNameJS = escapeJs(name);
-        String delBtn = AppConfig.getInstance().isAllowUpload() ?
-                String.format("<a href=\"javascript:void(0)\" onclick=\"if(confirm('确定删除 %s 吗？（该操作不可逆！）')) navigate('%s?action=delete')\" class=\"btn-action btn-del\"><i class=\"bi bi-trash3\"></i></a>",
-                        safeNameJS, href) : "";
+            String mainAction = String.format("onclick=\"preview('%s', 'txt', '%s','%d')\"", href, safeName,f.length());
 
-        buf.append(String.format("""
+            // 渲染行
+            buf.append(String.format("""
+                        <div class="list-group-item d-flex align-items-start py-3">
+                            <i class="bi %s fs-4 me-3 flex-shrink-0"></i>
+                            <div class="flex-grow-1 min-width-0" style="cursor:pointer" %s>
+                                %s
+                                %s
+                            </div>
+                            <div class="ms-3 d-flex gap-2 flex-shrink-0">
+                                <button onclick="copy('%s')" class='btn-action border-0 bg-transparent'><i class='bi bi-clipboard'></i></button>
+                                <a href="javascript:void(0)" onclick="if(confirm('确定删除？')) navigate('%s?action=delete')" class="btn-action btn-del"><i class="bi bi-trash3"></i></a>
+                            </div>
+                        </div>
+                    """, icon, mainAction, contentHtml, metaHtml, safeFullText, href));
+            }
+        else {
+            String safeNameHTML = StringEscapeUtils.escapeHtml4(name);
+            String ext = getExt(name);
+
+            String icon = f.isDirectory() ? "bi-folder-fill text-warning" : "bi-file-earmark-text text-secondary";
+
+            String size = f.isDirectory() ? "" : formatSize(f.length());
+
+            String action = f.isDirectory() ?
+                    String.format("href='javascript:void(0)' onclick='navigate(\"%s\")'", href) :
+                    String.format("href='javascript:void(0)' onclick=\"preview('%s', '%s', '%s','%d')\"", href, ext, safeName,f.length());
+
+            String downloadBtn = f.isDirectory() ? "" : "<a href='"+href+"' download class='btn-action'><i class='bi bi-download'></i></a>";
+
+            String delBtn = AppConfig.getInstance().isAllowUpload() ?
+                    String.format("<a href=\"javascript:void(0)\" onclick=\"if(confirm('确定删除 %s 吗？（该操作不可逆！）')) navigate('%s?action=delete')\" class=\"btn-action btn-del\"><i class=\"bi bi-trash3\"></i></a>",
+                            safeName, href) : "";
+
+
+            buf.append(String.format("""
             <div class="list-group-item d-flex align-items-center py-2">
                 <i class="bi %s fs-4 me-3 flex-shrink-0"></i>
-                <!-- 中间文字：允许压缩，触发省略号 -->
+        
                 <div class="flex-grow-1" style="min-width: 0;">
                     <a %s class="file-name d-block text-truncate">%s</a>
                     <div class="file-meta text-truncate">%s &nbsp; %s</div>
                 </div>
-                <!-- 【核心修复】右侧按钮：禁止缩放 (flex-shrink: 0) -->
                 <div class="ms-3 d-flex gap-2 flex-shrink-0">
                     %s
                     %s
                 </div>
             </div>
-        """, icon, action, safeNameHTML, time, size,
-                f.isDirectory() ? "" : "<a href='"+href+"' download class='btn-action'><i class='bi bi-download'></i></a>",
-                delBtn));
+        """, icon, action, safeNameHTML, time, size, downloadBtn ,delBtn));
+        }
+
     }
 
     private static String resolveParent(String uri) {
@@ -663,37 +682,19 @@ public class HtmlGenerator {
     private static String getExt(String n) {
         n = n.toLowerCase();
         if (n.matches(".*\\.(jpg|png|gif|jpeg|webp)$")) return "img";
-        if (n.matches(".*\\.(txt|log|java|py|htm|html|css|js|json|xml|yaml|md|c|cpp|properties|sh|h|)$")) return "txt";
+        if (n.matches(".*\\.(txt|log|java|py|htm|html|css|js|json|xml|yaml|yml|md|c|cpp|properties|sh|h|)$")) return "txt";
         // pdf 不再单独识别，直接走默认的 "bin" 逻辑触发“不支持预览”提示
         return "bin";
 
     }
     private static String encodeUrl(String path) {
         try {
-            return java.net.URLEncoder.encode(path, "UTF-8")
-                    .replace("+", "%20")
+            return java.net.URLEncoder.encode(path, StandardCharsets.UTF_8)
+                    .replace("+","%20")
                     .replace("%2F", "/")
                     .replace("%3A", ":"); // 保留冒号，防止 D%3A 路径错误
         } catch (Exception e) {
             return path;
         }
-    }
-    private static String escapeJs(String s) {
-        if (s == null) return "";
-        return s.replace("\\", "\\\\")  // 先转义反斜杠
-                .replace("`", "\\`")    // 转义反引号 (因为我们用 `...` 包裹)
-                .replace("$", "\\$");   // 转义模板变量符
-    }
-    private static String escapeHtml(String s) {
-        if (s == null) return "";
-        return s.replace("&", "&amp;")  // 1. 先把 & 干掉
-                .replace("<", "&lt;")
-                .replace(">", "&gt;")
-                .replace("\"", "&quot;")
-                .replace("'", "&apos;"); // 2. 再生成包含 & 的实体
-    }
-    private static String toBase64(String text) {
-        if (text == null) return "";
-        return java.util.Base64.getEncoder().encodeToString(text.getBytes(java.nio.charset.StandardCharsets.UTF_8));
     }
 }

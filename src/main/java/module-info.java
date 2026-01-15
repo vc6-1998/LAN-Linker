@@ -12,6 +12,7 @@ module com.ccb.javafx {
     requires java.desktop;
     requires com.google.zxing;
     requires com.google.zxing.javase;
+    requires org.apache.commons.text;
 
     opens com.vc6 to javafx.fxml;
     exports com.vc6;
