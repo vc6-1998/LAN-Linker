@@ -121,7 +121,7 @@ public class SettingsView {
                     if (newPort != AppConfig.getInstance().getPort()) {
                         AppConfig.getInstance().setPort(newPort);
                         // ConfigStore.save() 会由 AppEntry 自动触发
-                        MessageUtils.showToast("端口已更新 (重启生效)");
+                        MessageUtils.showToast("端口已更新");
                     }
                     // 执行检测
                     checkPortStatus(text, portStatus);
@@ -391,7 +391,7 @@ public class SettingsView {
         helpBtn.getStyleClass().add(Styles.ACCENT);
         helpBtn.setOnAction(e -> showHelpDialog());
 
-        Label appName = new Label("LAN Linker v1.1");
+        Label appName = new Label("LAN Linker v1.2");
         appName.getStyleClass().add(Styles.TITLE_4);
 
         TextFlow desc = new TextFlow(
@@ -419,7 +419,7 @@ public class SettingsView {
         alert.setHeaderText("如何使用 LAN Linker？");
         alert.setContentText("""
         1. 连接网络
-        - 确保所有设备连接同一个 Wi-Fi (不同账号的校园网属于一个局域网，允许互通)。
+        - 确保所有设备连接同一个 局域网 (不同账号的校园网属于一个局域网，允许互通)。
         - 在“仪表盘”查看本机 IP 和端口，端口可在设置里更改。
         2. 扫码访问
         启动任意服务模式，用手机浏览器扫描仪表盘上的二维码，或直接输入网址。 

@@ -6,7 +6,7 @@
 
     <groupId>com.vc6</groupId>
     <artifactId>LAN-Linker</artifactId>
-    <version>1.1</version>
+    <version>1.2</version>
     <name>javafx</name>
     <packaging>jar</packaging>
 
@@ -27,19 +27,6 @@
             <groupId>org.openjfx</groupId>
             <artifactId>javafx-fxml</artifactId>
             <version>21</version>
-        </dependency>
-
-        <dependency>
-            <groupId>org.junit.jupiter</groupId>
-            <artifactId>junit-jupiter-api</artifactId>
-            <version>${junit.version}</version>
-            <scope>test</scope>
-        </dependency>
-        <dependency>
-            <groupId>org.junit.jupiter</groupId>
-            <artifactId>junit-jupiter-engine</artifactId>
-            <version>${junit.version}</version>
-            <scope>test</scope>
         </dependency>
         <dependency>
             <groupId>io.github.mkpaz</groupId>
@@ -63,7 +50,6 @@
         </dependency>
 
     </dependencies>
-
     <build>
         <plugins>
             <plugin>
@@ -73,7 +59,6 @@
                 <configuration>
                     <source>21</source>
                     <target>21</target>
-<!--                    <encoding>UTF-8</encoding>-->
                 </configuration>
             </plugin>
             <plugin>

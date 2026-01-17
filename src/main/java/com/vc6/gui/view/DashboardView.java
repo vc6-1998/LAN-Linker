@@ -217,10 +217,10 @@ public class DashboardView {
 
         // 2. 启动后台线程查 IP 和 端口
         new Thread(() -> {
-            String ip = IpUtils.getLocalIp(); // 耗时
-            String host = IpUtils.getHostName(); // 耗时
+            String ip = IpUtils.getLocalIp();
+            String host = IpUtils.getHostName();
             int port = AppConfig.getInstance().getPort();
-            boolean available = IpUtils.isPortAvailable(port); // 耗时
+            boolean available = IpUtils.isPortAvailable(port);
 
             // 3. 查完回 UI 线程填数据
             Platform.runLater(() -> {
@@ -294,7 +294,7 @@ public class DashboardView {
         });
         linkBox.getChildren().addAll(linkField, copyBtn);
 
-        Label hint = new Label("手机扫码或输入网址即可访问");
+        Label hint = new Label("同一网络环境下，扫码或输入网址即可访问");
         hint.getStyleClass().add(Styles.TEXT_MUTED);
 
         infoBox.getChildren().addAll(title, linkBox, hint);
