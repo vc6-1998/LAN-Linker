@@ -21,7 +21,7 @@ public class MainStage {
         Sidebar sidebar = new Sidebar(this);
         rootLayout.setLeft(sidebar.getView());
 
-        scene = new Scene(rootLayout, 1000, 680);
+        scene = new Scene(rootLayout, 1000, 740);
 
         primaryStage.setTitle("LAN-Linker Server");
         try {

@@ -11,12 +11,17 @@ import java.util.Properties;
 import java.util.concurrent.ConcurrentHashMap;
 
 public class SessionManager {
-    private static final SessionManager INSTANCE = new SessionManager();
 
     private final ConcurrentHashMap<String, UserSession> sessions = new ConcurrentHashMap<>();
-    private final ObservableList<UserSession> sessionList = FXCollections.observableArrayList();
+    private final ObservableList<UserSession> sessionList = FXCollections.observableArrayList(
+            user -> new javafx.beans.Observable[]{ user.valuableProperty() }
+    );
     private final Properties userStore = new Properties();
     private final File userFile = new File("users.properties");
+
+
+    private static final SessionManager INSTANCE = new SessionManager();
+
 
     private SessionManager() {
         loadUsers();
@@ -28,54 +33,57 @@ public class SessionManager {
         if (!userFile.exists()) return;
         try (Reader reader = new InputStreamReader(new FileInputStream(userFile), StandardCharsets.UTF_8)) {
             userStore.load(reader);
-
-            // 【核心修复】遍历配置文件，把老用户“复活”到内存里
             for (String key : userStore.stringPropertyNames()) {
-                // 存储格式约定：uid.prop (例如 1234.name, 1234.ip)
                 if (key.contains(".")) {
                     String uid = key.split("\\.")[0];
                     if (!sessions.containsKey(uid)) {
                         String name = userStore.getProperty(uid + ".name");
                         String ip = userStore.getProperty(uid + ".ip", "Unknown");
                         String dev = userStore.getProperty(uid + ".dev", "Unknown");
+                        String timeStr = userStore.getProperty(uid + ".time"); // 读取时间
 
                         if (name != null) {
                             UserSession s = new UserSession(uid, ip, dev);
                             s.setNickname(name);
-                            // 绑定监听
+                            s.setValuable(true);
+                            // 恢复时间
+                            if (timeStr != null) {
+                                try { s.setLastActive(Long.parseLong(timeStr)); } catch(Exception e){}
+                            }
+
                             bindSaveListener(s);
-                            // 复活进内存！
                             sessions.put(uid, s);
                             Platform.runLater(() -> sessionList.add(s));
                         }
                     }
                 }
             }
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
+        } catch (Exception e) { e.printStackTrace(); }
     }
 
     private void saveUsers() {
-        try (Writer writer = new OutputStreamWriter(new FileOutputStream(userFile), StandardCharsets.UTF_8)) {
-            // 将内存里的所有会话状态写入文件
-            // 格式：uid.name, uid.ip, uid.dev
+        try (PrintWriter writer = new PrintWriter(new OutputStreamWriter(new FileOutputStream(userFile), StandardCharsets.UTF_8))) {
+            writer.println("# User Database");
             for (UserSession s : sessions.values()) {
+                if(!s.isValuable())
+                    continue;
                 String uid = s.getUserId();
                 userStore.setProperty(uid + ".name", s.getNickname());
                 userStore.setProperty(uid + ".ip", s.getIp());
                 userStore.setProperty(uid + ".dev", s.getDeviceName());
+                userStore.setProperty(uid + ".time", String.valueOf(s.getLastActive())); // 保存时间
             }
-            userStore.store(writer, "User Database");
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
+            for (String key : userStore.stringPropertyNames()) {
+                writer.println(key + "=" + userStore.getProperty(key));
+            }
+        } catch (Exception e) { e.printStackTrace(); }
     }
 
     private void bindSaveListener(UserSession s) {
         // 任何属性变动都触发保存
         s.nicknameProperty().addListener(o -> saveUsers());
         s.ipProperty().addListener(o -> saveUsers()); // IP变了也更新
+        s.lastActiveProperty().addListener(o -> saveUsers()); // 监听时间变化
     }
 
     public UserSession getSession(String uid) {
@@ -90,22 +98,40 @@ public class SessionManager {
     }
 
     public UserSession getOrCreateSession(String uid, String ip, String userAgent) {
+        // 1. 如果内存里已经有这个活着的会话了，直接返回
         if (sessions.containsKey(uid)) {
             UserSession s = sessions.get(uid);
-            s.setIp(ip); // 更新最新 IP
+            s.setIp(ip);
             s.updateLastActive();
             return s;
         }
-
-        // 创建新会话
+        // 2. 内存里没有，创建一个新的对象
         UserSession s = new UserSession(uid, ip, parseDevice(userAgent));
         bindSaveListener(s);
+        // 3. 【核心修复】去硬盘（userStore）里查，看他是不是以前登录成功的“老用户”
+        String savedNick = userStore.getProperty(uid + ".name");
+        if (savedNick != null) {
+            s.setNickname(savedNick);
+            s.setValuable(true); // 自动恢复登录态
+        } else {
+            s.setValuable(false); // 标记为未登录/临时访客
+        }
 
         sessions.put(uid, s);
         Platform.runLater(() -> sessionList.add(s));
-        saveUsers(); // 立即保存新用户
         return s;
     }
+    public void removeSession(UserSession s) {
+        // 1. 撤销“有价值”标记
+        s.setValuable(false);
+        String uid = s.getUserId();
+        userStore.remove(uid + ".name");
+        userStore.remove(uid + ".ip");
+        userStore.remove(uid + ".dev");
+        userStore.remove(uid + ".time");
+        saveUsers();
+    }
+
 
     private String parseDevice(String ua) {
         if (ua == null) return "未知设备";
@@ -117,4 +143,5 @@ public class SessionManager {
     }
 
     public ObservableList<UserSession> getSessionList() { return sessionList; }
+
 }

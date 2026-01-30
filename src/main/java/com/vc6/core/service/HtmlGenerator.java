@@ -388,7 +388,7 @@ public class HtmlGenerator {
     // --- 内部 Shell 辅助 ---
     private static String getHead(String subtitle, String nickname) {
         String badgeText = (nickname != null && !nickname.isEmpty()) ? nickname : subtitle;
-        String appTitle = AppConfig.getInstance().getWebTitle();
+        String appTitle = AppConfig.getInstance().getdeviceName();
         return String.format("""
             <!DOCTYPE html>
             <html lang="zh-CN" data-bs-theme="dark">
@@ -545,20 +545,67 @@ public class HtmlGenerator {
 
     public static String generateLoginPage(String error, String defaultNickname) {
         StringBuilder buf = new StringBuilder();
-        buf.append(getHead("安全验证",null));
-        String err = (error != null) ? "<div class='alert alert-danger py-2 small'>"+error+"</div>" : "";
+        // 这里假设 getHead 内部已经处理了 subtitle，我们传入 "安全验证"
+        buf.append(getHead("安全验证", null));
+
+        String alertHtml = (error != null) ?
+                String.format("<div class='alert alert-danger py-2 small mb-3'><i class='bi bi-exclamation-triangle-fill me-2'></i>%s</div>", error) : "";
+
         buf.append(String.format("""
-            <div class="d-flex justify-content-center align-items-center" style="height: 60vh;">
-                <div class="card p-4 shadow-lg text-center" style="width: 340px;">
-                    <i class="bi bi-shield-lock text-primary display-4 mb-3"></i><h4>访问受限</h4>%s
+            <div class="d-flex justify-content-center align-items-center" style="min-height: 70vh;">
+                <div class="card p-4 shadow-lg" style="width: 360px; border-radius: 12px; border-top: 4px solid var(--accent);">
+                    <div class="text-center mb-4">
+                        <i class="bi bi-shield-lock-fill text-primary" style="font-size: 3rem;"></i>
+                        <h4 class="mt-2 text-white fw-bold">访问受限</h4>
+                        <p class="text-secondary small">请验证身份以继续访问</p>
+                    </div>
+                    
+                    %s <!-- 错误提示区 -->
+                    
                     <form method="post" action="/login">
-                        <input type="password" name="pin" class="form-control mb-3 text-center fs-4 bg-dark text-white border-secondary" placeholder="PIN 码" required autofocus>
-                        <input type="text" name="nickname" class="form-control mb-4 bg-dark text-white border-secondary text-center" value="%s">
-                        <button type="submit" class="btn btn-primary w-100 py-2 fw-bold">解锁访问</button>
+                        <!-- 1. 用户/设备昵称 (先表明身份) -->
+                        <div class="mb-3 text-start">
+                            <label class="form-label small text-secondary fw-bold">设备备注 (您的昵称)</label>
+                            <div class="input-group">
+                                <span class="input-group-text bg-dark border-secondary text-secondary">
+                                    <i class="bi bi-person-badge"></i>
+                                </span>
+                                <input type="text" name="nickname" class="form-control bg-dark text-white border-secondary" 
+                                       value="%s" placeholder="给自己起个外号吧" autocomplete="off">
+                            </div>
+                        </div>
+                        
+                        <!-- 2. PIN 码 (后输入凭证) -->
+                        <div class="mb-3 text-start">
+                            <label class="form-label small text-secondary fw-bold">访问 PIN 码</label>
+                            <div class="input-group">
+                                <span class="input-group-text bg-dark border-secondary text-secondary">
+                                    <i class="bi bi-key-fill"></i>
+                                </span>
+                                <input type="password" name="pin" class="form-control bg-dark text-white border-secondary text-center fs-5"\s
+                                       placeholder="4-20 位字母或数字"
+                                       required autofocus autocomplete="off"
+                                       /* 【核心修复 1】正则表达式改为允许字母和数字 */
+                                       pattern="[a-zA-Z0-9]*"
+                                       /* 【核心修复 2】改为 text 模式，以便在手机端弹出全键盘而非数字键盘 */
+                                       inputmode="text"
+                                       style="letter-spacing: 0.3rem;">
+                            </div>
+                        </div>
+                        
+                        <button type="submit" class="btn btn-primary w-100 py-2 fw-bold shadow-sm">
+                            <i class="bi bi-unlock-fill me-2"></i>解 锁 访 问
+                        </button>
                     </form>
+                    
+                    <div class="mt-4 text-center">
+                        <small class="text-muted" style="font-size: 11px; letter-spacing: 1px;">SECURE ACCESS CONTROL</small>
+                    </div>
                 </div>
             </div>
-        """, err, defaultNickname)).append(getFoot());
+        """, alertHtml, defaultNickname));
+
+        buf.append(getFoot());
         return buf.toString();
     }
 

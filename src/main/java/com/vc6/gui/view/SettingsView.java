@@ -97,40 +97,23 @@ public class SettingsView {
         portBox.setAlignment(Pos.CENTER_LEFT);
 
         TextField portField = new TextField(String.valueOf(AppConfig.getInstance().getPort()));
-        makeNumeric(portField); // 限制数字
+        setupNumericField(portField, AppConfig.getInstance().portProperty(), 1, 65535);
         portField.setPrefWidth(80);
 
         portField.disableProperty().bind(
                 AppConfig.getInstance().serverModeProperty().isNotEqualTo(ServerMode.STOPPED)
         );
-        // 状态提示标签
+
+        // 【逻辑3】状态提示标签
         Label portStatus = new Label();
         portStatus.setStyle("-fx-font-size: 12px;");
 
-        // 初始化时检查一次
-        checkPortStatus(portField.getText(), portStatus);
-
-        // 【核心】监听焦点丢失事件 -> 自动保存
-        portField.focusedProperty().addListener((obs, oldVal, newVal) -> {
-            if (!newVal) { // 失去焦点 (newVal = false)
-                String text = portField.getText();
-                if (!text.isEmpty()) {
-                    int newPort = Integer.parseInt(text);
-
-                    // 只有值真的变了才提示
-                    if (newPort != AppConfig.getInstance().getPort()) {
-                        AppConfig.getInstance().setPort(newPort);
-                        // ConfigStore.save() 会由 AppEntry 自动触发
-                        MessageUtils.showToast("端口已更新");
-                    }
-                    // 执行检测
-                    checkPortStatus(text, portStatus);
-                }
-            }
+        AppConfig.getInstance().portProperty().addListener((obs, old, newVal) -> {
+            checkPortStatus(String.valueOf(newVal), portStatus);
+            MessageUtils.showToast("端口已更新为: " + newVal);
         });
 
-        // 按回车也可以触发保存 (通过转移焦点)
-        portField.setOnAction(e -> grid.requestFocus());
+        checkPortStatus(portField.getText(), portStatus);
 
         portBox.getChildren().addAll(portField, portStatus);
         addGridRow(grid, 0, "服务端口:", portBox);
@@ -145,16 +128,16 @@ public class SettingsView {
         });
         addGridRow(grid, 1, "优先 IP:", netBox);
 
-        TextField titleField = new TextField(AppConfig.getInstance().getWebTitle());
+        TextField titleField = new TextField(AppConfig.getInstance().getdeviceName());
         titleField.setPrefWidth(200);
         titleField.textProperty().addListener((o, old, val) -> {
             if (val != null && !val.isEmpty()) {
-                AppConfig.getInstance().setWebTitle(val);
+                AppConfig.getInstance().setdeviceName(val);
                 ConfigStore.save();
             }
         });
 
-        addGridRow(grid, 2, "网页名称:", titleField);
+        addGridRow(grid, 2, "设备名称:", titleField);
 
         // 1.3 系统集成
         SimpleToggleSwitch trayCheck = new SimpleToggleSwitch("关闭主窗口时最小化到托盘");
@@ -171,33 +154,47 @@ public class SettingsView {
         grid.setHgap(20); grid.setVgap(15);
 
         // 1. 全局保护开关
+
+
         SimpleToggleSwitch authSwitch = new SimpleToggleSwitch("启用全局网页访问保护");
         authSwitch.selectedProperty().bindBidirectional(AppConfig.getInstance().globalAuthEnabledProperty());
+        authSwitch.disableProperty().bind(
+                AppConfig.getInstance().serverModeProperty().isEqualTo(ServerMode.REMOTE_DISK)
+        );
         addGridRow(grid, 0, "安全网关:", authSwitch);
 
         // 2. PIN 码设置
         PasswordField pinField = new PasswordField();
-        pinField.setPromptText("4-6位数字");
-        pinField.setPrefWidth(120);
-        pinField.setText(AppConfig.getInstance().getRemotePin());
-        pinField.textProperty().addListener((obs, old, val) -> AppConfig.getInstance().setRemotePin(val));
+        pinField.setPromptText("4-20位字母数字");
+        pinField.setPrefWidth(150); // 稍微加宽一点，因为20位比较长
+        setupPinField(pinField, AppConfig.getInstance().remotePinProperty());
         addGridRow(grid, 1, "访问 PIN 码:", pinField);
 
         // 3. 会话有效期设置
         ComboBox<String> expiryBox = new ComboBox<>();
-        expiryBox.getItems().addAll("1 天内免登录", "7 天内免登录");
+        expiryBox.getItems().addAll("1 小时", "1 天","7 天","30 天","365 天");
 
         // 映射逻辑
-        int currentDays = AppConfig.getInstance().getSessionExpiryDays();
-        if (currentDays == 1) expiryBox.getSelectionModel().select(0);
-        else if (currentDays == 7) expiryBox.getSelectionModel().select(1);
+        int expiryTime = AppConfig.getInstance().getSessionExpiryTime();
+        if (expiryTime == 1) expiryBox.getSelectionModel().select(0);
+        else if (expiryTime == 2) expiryBox.getSelectionModel().select(1);
+        else if (expiryTime == 3) expiryBox.getSelectionModel().select(2);
+        else if (expiryTime == 4) expiryBox.getSelectionModel().select(3);
+        else if (expiryTime == 5) expiryBox.getSelectionModel().select(4);
 
         expiryBox.valueProperty().addListener((obs, old, val) -> {
             if (val == null) return;
-            if (val.contains("1")) AppConfig.getInstance().setSessionExpiryDays(1);
-            else if (val.contains("7")) AppConfig.getInstance().setSessionExpiryDays(7);
+            if (val.contains("1 小时")) AppConfig.getInstance().setSessionExpiryTime(1);
+            else if (val.contains("1 天")) AppConfig.getInstance().setSessionExpiryTime(2);
+            else if (val.contains("7 天")) AppConfig.getInstance().setSessionExpiryTime(3);
+            else if (val.contains("30 天")) AppConfig.getInstance().setSessionExpiryTime(4);
+            else if (val.contains("365 天")) AppConfig.getInstance().setSessionExpiryTime(5);
         });
         addGridRow(grid, 2, "登录有效期:", expiryBox);
+
+        SimpleToggleSwitch discoveryCheck = new SimpleToggleSwitch("允许被其它设备扫描");
+        discoveryCheck.selectedProperty().bindBidirectional(AppConfig.getInstance().discoveryEnabledProperty());
+        addGridRow(grid, 3, "服务广播:", discoveryCheck);
 
         return grid;
     }
@@ -231,7 +228,7 @@ public class SettingsView {
         });
 
         Button cleanBtn = new Button("清理缓存");
-        cleanBtn.getStyleClass().addAll(Styles.SMALL, Styles.DANGER);
+        cleanBtn.getStyleClass().addAll(Styles.DANGER);
         cleanBtn.setOnAction(e -> {
             File dir = new File(AppConfig.getInstance().getQuickSharePath());
             if (dir.exists()) {
@@ -249,27 +246,53 @@ public class SettingsView {
         });
 
         HBox pathBox = new HBox(10, pathField, openBtn,changeBtn,cleanBtn);
-        addGridRow(grid, 0, "快传缓存:", pathBox);
+        addGridRow(grid, 0, "快传缓存路径:", pathBox);
 
+        ComboBox<String> expireCombo = new ComboBox<>();
+        expireCombo.getItems().addAll("1 小时后", "12 小时后", "24 小时后", "7 天后","永不清理");
+
+        // 初始化选中状态
+        int hours = AppConfig.getInstance().getQuickShareExpireHours();
+        if (hours == 1) expireCombo.getSelectionModel().select(0);
+        else if (hours == 12) expireCombo.getSelectionModel().select(1);
+        else if (hours == 24) expireCombo.getSelectionModel().select(2);
+        else if (hours == 24*7) expireCombo.getSelectionModel().select(3);
+        else expireCombo.getSelectionModel().select(4);
+
+        // 绑定监听
+        expireCombo.valueProperty().addListener((obs, old, val) -> {
+            if (val == null) return;
+            int newHours = 0;
+            if (val.contains("1 小时")) newHours = 1;
+            else if (val.contains("12 小时")) newHours = 12;
+            else if (val.contains("24 小时")) newHours = 24;
+            else if (val.contains("7 天")) newHours = 24*7;
+
+            AppConfig.getInstance().setQuickShareExpireHours(newHours);
+            MessageUtils.showToast("清理时间已更新");
+        });
+        addGridRow(grid, 1, "自动清理时间:", expireCombo);
 
         // 2.3 安全限制
-        TextField fileLimit = new TextField(String.valueOf(AppConfig.getInstance().getMaxFileSizeMb()));
-        makeNumeric(fileLimit);
-        fileLimit.setPrefWidth(80);
-        fileLimit.textProperty().addListener((o, old, val) -> {
-            if(!val.isEmpty()) AppConfig.getInstance().setMaxFileSizeMb(Long.parseLong(val));
-        });
+        TextField fileLimitField = new TextField(String.valueOf(AppConfig.getInstance().getMaxFileSizeMb()));
+        fileLimitField.setPrefWidth(80);
+        // 使用工具方法：范围 1MB - 2047MB (防止 Netty 溢出)
+        setupNumericField(fileLimitField, AppConfig.getInstance().maxFileSizeMbProperty(), 1, 2047);
 
-        TextField textLimit = new TextField(String.valueOf(AppConfig.getInstance().getMaxTextLength()));
-        makeNumeric(textLimit);
-        textLimit.setPrefWidth(80);
-        textLimit.textProperty().addListener((o, old, val) -> {
-            if(!val.isEmpty()) AppConfig.getInstance().setMaxTextLength(Integer.parseInt(val));
-        });
+        // 2. 文本字数上限输入框
+        TextField textLimitField = new TextField(String.valueOf(AppConfig.getInstance().getMaxTextLength()));
+        textLimitField.setPrefWidth(80);
+        // 使用工具方法：范围 1字 - 1,000,000字
+        setupNumericField(textLimitField, AppConfig.getInstance().maxTextLengthProperty(), 1, 1000000);
 
-        addGridRow(grid, 2, "单文件上限:", new HBox(10, fileLimit, new Label("MB")));
-        addGridRow(grid, 3, "文本字数:", new HBox(10, textLimit, new Label("字")));
+        // --- 布局组装 ---
+        HBox fileLimitBox = new HBox(10, fileLimitField, new Label("MB"));
+        fileLimitBox.setAlignment(Pos.CENTER_LEFT);
+        addGridRow(grid, 2, "单文件上限:", fileLimitBox);
 
+        HBox textLimitBox = new HBox(10, textLimitField, new Label("字"));
+        textLimitBox.setAlignment(Pos.CENTER_LEFT);
+        addGridRow(grid, 3, "文本字数:", textLimitBox);
         return grid;
     }
 
@@ -331,6 +354,25 @@ public class SettingsView {
         debugCheck.selectedProperty().bindBidirectional(AppConfig.getInstance().debugModeProperty());
         addGridRow(grid, 0, "日志设置:",debugCheck);
 
+//        Label logPathLabel = new Label("运行日志:");
+        TextField logPathField = new TextField(new File("logs").getAbsolutePath());
+        logPathField.setEditable(false);
+        HBox.setHgrow(logPathField, Priority.ALWAYS);
+
+        Button openLogBtn = new Button("打开文件夹");
+        openLogBtn.getStyleClass().add(Styles.BUTTON_OUTLINED);
+        openLogBtn.setOnAction(e -> {
+            try {
+                File logDir = new File("logs");
+                if (!logDir.exists()) logDir.mkdirs();
+                java.awt.Desktop.getDesktop().open(logDir);
+            } catch (Exception ex) {
+                MessageUtils.showToast("打开失败");
+            }
+        });
+        HBox logPathBox = new HBox(10, logPathField, openLogBtn);
+        addGridRow(grid, 1, "运行日志:",logPathBox);
+
         String configPath = new File("config.properties").getAbsolutePath();
         TextField pathField = new TextField(configPath);
         pathField.setEditable(false);
@@ -341,7 +383,7 @@ public class SettingsView {
         openBtn.setOnAction(e -> openFile(new File(configPath).getParentFile()));
 
         HBox pathBox = new HBox(10, pathField, openBtn);
-        addGridRow(grid, 1, "配置文件:", pathBox);
+        addGridRow(grid, 2, "配置文件:", pathBox);
 
         String userPath = new File("user.properties").getAbsolutePath();
         TextField userpathField = new TextField(userPath);
@@ -353,7 +395,7 @@ public class SettingsView {
         userOpenBtn.setOnAction(e -> openFile(new File(userPath).getParentFile()));
 
         HBox userpathBox = new HBox(10, userpathField, userOpenBtn);
-        addGridRow(grid, 2, "用户配置:", userpathBox);
+        addGridRow(grid, 3, "用户配置:", userpathBox);
 
         Button resetBtn = new Button("恢复所有设置");
         resetBtn.getStyleClass().addAll(Styles.BUTTON_OUTLINED, Styles.DANGER);
@@ -380,7 +422,7 @@ public class SettingsView {
                 }, 1500);
             }
         });
-        addGridRow(grid, 3, "",resetBtn);
+        addGridRow(grid, 4, "",resetBtn);
         return grid;
     }
     private Node createAboutSettings() {
@@ -391,7 +433,7 @@ public class SettingsView {
         helpBtn.getStyleClass().add(Styles.ACCENT);
         helpBtn.setOnAction(e -> showHelpDialog());
 
-        Label appName = new Label("LAN Linker v1.2");
+        Label appName = new Label("LAN Linker v2.0");
         appName.getStyleClass().add(Styles.TITLE_4);
 
         TextFlow desc = new TextFlow(
@@ -422,7 +464,8 @@ public class SettingsView {
         - 确保所有设备连接同一个 局域网 (不同账号的校园网属于一个局域网，允许互通)。
         - 在“仪表盘”查看本机 IP 和端口，端口可在设置里更改。
         2. 扫码访问
-        启动任意服务模式，用手机浏览器扫描仪表盘上的二维码，或直接输入网址。 
+        启动任意服务模式，用手机浏览器扫描仪表盘上的二维码，或直接输入网址。
+        若两台电脑均安装了该程序，则可在“连接其它服务”栏里搜索到其它已启动服务。
         3. 三种模式
         - 极速快传：像聊天一样互发文本、图片和文件(临时存储，支持直接发送、粘贴或拖拽方式)。
         - 本地共享：将电脑上的某个文件夹共享给手机管理。
@@ -432,12 +475,6 @@ public class SettingsView {
         - 上传失败？请检查设置里的文件大小限制。
         """);
         alert.show();
-    }
-
-    private void makeNumeric(TextField tf) {
-        tf.textProperty().addListener((obs, old, val) -> {
-            if (!val.matches("\\d*")) tf.setText(val.replaceAll("[^\\d]", ""));
-        });
     }
 
     private void openFile(File file) {
@@ -490,6 +527,76 @@ public class SettingsView {
         label.setAlignment(Pos.CENTER_LEFT);
         grid.add(label, 0, row);
         grid.add(control, 1, row);
+    }
+
+    private void setupNumericField(TextField tf, javafx.beans.property.Property<Number> property, long min, long max) {
+        // 1. 只能输入数字
+        tf.textProperty().addListener((obs, old, val) -> {
+            if (!val.matches("\\d*")) tf.setText(val.replaceAll("[^\\d]", ""));
+        });
+
+        // 2. 失去焦点自动应用
+        tf.focusedProperty().addListener((obs, wasFocused, isFocused) -> {
+            if (!isFocused) applyNumericValue(tf, property, min, max);
+        });
+
+        // 3. 按回车自动应用 (通过请求父容器焦点来触发失焦)
+        tf.setOnAction(e -> tf.getParent().requestFocus());
+    }
+
+    private void applyNumericValue(TextField tf, javafx.beans.property.Property<Number> property, long min, long max) {
+        String text = tf.getText();
+        if (text.isEmpty()) {
+            tf.setText(String.valueOf(property.getValue()));
+            return;
+        }
+        try {
+            long val = Long.parseLong(text);
+            if (val < min) val = min;
+            if (val > max) val = max;
+
+            // 如果值真的发生了变化，这行代码会触发我们在 createGeneralSettings 里写的那个监听器
+            if (val != property.getValue().longValue()) {
+                property.setValue(val);
+            }
+
+            // 无论值变没变，都把文本框文字修正一下（比如把 99999 变回 65535）
+            tf.setText(String.valueOf(val));
+        } catch (Exception e) {
+            tf.setText(String.valueOf(property.getValue()));
+        }
+    }
+
+    private void setupPinField(PasswordField pf, javafx.beans.property.StringProperty property) {
+        // 1. 实时过滤：只允许字母和数字，且限制最大 20 位
+        pf.setText(property.get());
+        pf.textProperty().addListener((obs, old, val) -> {
+            // 如果不符合正则表达式（字母数字）或者超过20位，则还原
+            if (!val.matches("[a-zA-Z0-9]*") || val.length() > 20) {
+                pf.setText(old);
+            }
+        });
+
+        // 2. 失去焦点时校验长度
+        pf.focusedProperty().addListener((obs, wasFocused, isFocused) -> {
+            if (!isFocused) {
+                String val = pf.getText();
+                // 如果用户输入了内容但少于4位
+                if (!val.isEmpty() && val.length() < 4) {
+                    MessageUtils.showError("设置失败", "PIN 码长度必须在 4-20 位之间！");
+                    pf.setText(property.get()); // 还原回上次保存的有效值
+                } else {
+                    // 合法长度（4-20位）或 设为空（表示取消密码保护）
+                    if (!val.equals(property.get())) {
+                        property.set(val);
+                        MessageUtils.showToast("访问 PIN 码已更新");
+                    }
+                }
+            }
+        });
+
+        // 按回车触发失焦
+        pf.setOnAction(e -> pf.getParent().requestFocus());
     }
 
     public VBox getView() { return view; }

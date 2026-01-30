@@ -10,33 +10,35 @@ public class AppConfig {
     private final StringProperty rootPath = new SimpleStringProperty(System.getProperty("user.home"));
     private final BooleanProperty allowUpload = new SimpleBooleanProperty(true);
     private final ObjectProperty<ServerMode> serverMode = new SimpleObjectProperty<>(ServerMode.STOPPED);
-    private final StringProperty webTitle = new SimpleStringProperty("LAN Linker");
+    private final StringProperty deviceName = new SimpleStringProperty(com.vc6.utils.IpUtils.getHostName());
 
     // --- 网络与安全 ---
     private final StringProperty preferredNetworkInterface = new SimpleStringProperty("Auto"); // 优先网卡
-    private final StringProperty remotePin = new SimpleStringProperty("");
+    private final StringProperty remotePin = new SimpleStringProperty("123456");
     private final BooleanProperty globalAuthEnabled = new SimpleBooleanProperty(false); // 默认关闭
-    private final IntegerProperty sessionExpiryDays = new SimpleIntegerProperty(1);
+    private final IntegerProperty sessionExpiryTime = new SimpleIntegerProperty(1);
     // --- 系统集成 ---
     private final BooleanProperty minimizeToTray = new SimpleBooleanProperty(true); // 最小化到托盘
 
 
     // --- 快传限制 ---
     private final StringProperty quickSharePath = new SimpleStringProperty(
-            new java.io.File(System.getProperty("java.io.tmpdir"), "LanLinker_Share").getAbsolutePath()
+            new java.io.File(System.getProperty("user.dir"), "quick_share").getAbsolutePath()
     );
     private final LongProperty maxFileSizeMb = new SimpleLongProperty(1024);
     private final IntegerProperty maxTextLength = new SimpleIntegerProperty(32767);
+    private final IntegerProperty quickShareExpireHours = new SimpleIntegerProperty(1);
 
-    // --- 外观 ---
-    private final BooleanProperty isDarkMode = new SimpleBooleanProperty(true); // 默认深色
+
+    // --- 外观 ---.
+    private final BooleanProperty isDarkMode = new SimpleBooleanProperty(false); // 默认深色
     private final IntegerProperty uiScalePercent = new SimpleIntegerProperty(120); // 缩放比例
 
     private final StringProperty localShareHistory = new SimpleStringProperty("");
 
     private final BooleanProperty debugMode = new SimpleBooleanProperty(false); // 默认关闭
 
-
+    private final BooleanProperty discoveryEnabled = new SimpleBooleanProperty(true); // 默认开启
 
 
     private AppConfig() {
@@ -103,9 +105,9 @@ public class AppConfig {
     public void setGlobalAuthEnabled(boolean val) { this.globalAuthEnabled.set(val); }
     public BooleanProperty globalAuthEnabledProperty() { return globalAuthEnabled; }
 
-    public int getSessionExpiryDays() { return sessionExpiryDays.get(); }
-    public void setSessionExpiryDays(int val) { this.sessionExpiryDays.set(val); }
-    public IntegerProperty sessionExpiryDaysProperty() { return sessionExpiryDays; }
+    public int getSessionExpiryTime() { return sessionExpiryTime.get(); }
+    public void setSessionExpiryTime(int val) { this.sessionExpiryTime.set(val); }
+    public IntegerProperty sessionExpiryTimeProperty() { return sessionExpiryTime; }
 
     public String getLocalShareHistory() { return localShareHistory.get(); }
     public void setLocalShareHistory(String val) { this.localShareHistory.set(val); }
@@ -115,7 +117,16 @@ public class AppConfig {
     public void setDebugMode(boolean val) { this.debugMode.set(val); }
     public BooleanProperty debugModeProperty() { return debugMode; }
 
-    public String getWebTitle() { return webTitle.get(); }
-    public void setWebTitle(String title) { this.webTitle.set(title); }
-    public StringProperty webTitleProperty() { return webTitle; }
+    public String getdeviceName() { return deviceName.get(); }
+    public void setdeviceName(String title) { this.deviceName.set(title); }
+    public StringProperty deviceNameProperty() { return deviceName; }
+
+    public boolean isDiscoveryEnabled() { return discoveryEnabled.get(); }
+    public void setDiscoveryEnabled(boolean val) { this.discoveryEnabled.set(val); }
+    public BooleanProperty discoveryEnabledProperty() { return discoveryEnabled; }
+
+    public int getQuickShareExpireHours() { return quickShareExpireHours.get(); }
+    public void setQuickShareExpireHours(int hours) { this.quickShareExpireHours.set(hours); }
+    public IntegerProperty quickShareExpireHoursProperty() { return quickShareExpireHours; }
+
 }

@@ -3,6 +3,7 @@ package com.vc6.core.handler;
 import com.vc6.core.service.AuthService;
 import com.vc6.core.service.FileService;
 import com.vc6.core.service.HtmlGenerator;
+import com.vc6.core.service.SessionManager;
 import com.vc6.gui.component.LogPanel;
 import com.vc6.model.AppConfig;
 import com.vc6.model.ServerMode;
@@ -25,7 +26,7 @@ public class HttpRequestHandler extends SimpleChannelInboundHandler<FullHttpRequ
     private final AuthService authService = new AuthService();
 
     @Override
-    protected void channelRead0(ChannelHandlerContext ctx, FullHttpRequest req) throws Exception {
+    protected void channelRead0(ChannelHandlerContext ctx, FullHttpRequest req) {
         String rawUri = req.uri();
         String decodedUri = new QueryStringDecoder(rawUri).path();
 
@@ -36,6 +37,7 @@ public class HttpRequestHandler extends SimpleChannelInboundHandler<FullHttpRequ
         }
 
         // 2. 身份识别：为每个请求分配/识别 UID
+
         DefaultFullHttpResponse tempResp = new DefaultFullHttpResponse(HttpVersion.HTTP_1_1, HttpResponseStatus.OK);
         UserSession user = authService.identifyUser(ctx, req, tempResp);
         ctx.channel().attr(AuthService.SESSION_KEY).set(user);
@@ -61,7 +63,13 @@ public class HttpRequestHandler extends SimpleChannelInboundHandler<FullHttpRequ
         boolean needsAuth = isGlobalAuth || (mode == ServerMode.REMOTE_DISK);
 
         if (needsAuth && !authService.isConfiguredAndLoggedIn(req)) {
-            LogPanel.log("[Security] "+getCurrentUserID(ctx)+": 拦截未授权访问: " + decodedUri);
+            LogPanel.log("[Auth] "+getCurrentUserID(ctx)+": 拦截未授权访问: " + decodedUri);
+
+            if (user.isValuable()) {
+                LogPanel.log("[Auth] 用户凭证失效，已强制下线: " + user.getUserId());
+                user.setValuable(false);
+                SessionManager.getInstance().removeSession(user);
+            }
             fileService.sendHtml(ctx, HtmlGenerator.generateLoginPage(null, user.getNickname()));
             return;
         }
@@ -123,7 +131,8 @@ public class HttpRequestHandler extends SimpleChannelInboundHandler<FullHttpRequ
 
         ServerMode mode = AppConfig.getInstance().getServerMode();
         UserSession user = ctx.channel().attr(AuthService.SESSION_KEY).get();
-        String nickname = user.getNickname();
+
+        String nickname = AppConfig.getInstance().isGlobalAuthEnabled()? user.getNickname(): "Guest";
 
         //处理特殊根目录
         if ("/".equals(uri)) {
@@ -172,13 +181,14 @@ public class HttpRequestHandler extends SimpleChannelInboundHandler<FullHttpRequ
             } catch (Exception ignored) {}
 
             if (authService.verifyPin(inputPin)) {
-                LogPanel.log("[Auth] "+getCurrentUserID(ctx)+": 登录成功 (Device: " + user.getDeviceName() + ")");
-
+                LogPanel.log("[Auth] "+user.getUserId()+": 登录成功 (Device: " + user.getDeviceName() + ")");
+                user.setValuable(true);
                 // 更新昵称
                 if (!inputNickname.isEmpty()) {
                     final String nick = inputNickname;
                     Platform.runLater(() -> user.setNickname(nick));
                 }
+                user.updateLastActive();
 
                 // 下发 Cookie
                 FullHttpResponse resp = new DefaultFullHttpResponse(HttpVersion.HTTP_1_1, HttpResponseStatus.FOUND);
@@ -218,15 +228,6 @@ public class HttpRequestHandler extends SimpleChannelInboundHandler<FullHttpRequ
 
         UserSession user = ctx.channel().attr(AuthService.SESSION_KEY).get();
         if (user == null) return "Unknown";
-
-
-        boolean isSecure = AppConfig.getInstance().isGlobalAuthEnabled() ||
-                AppConfig.getInstance().getServerMode() == ServerMode.REMOTE_DISK;
-
-        if (!isSecure) {
-            // If security is off, maybe user prefers "Anonymous"
-            return user.getIp();
-        }
 
         return user.getUserId();
     }

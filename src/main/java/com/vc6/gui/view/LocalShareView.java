@@ -125,7 +125,7 @@ public class LocalShareView {
         Button setSharedBtn = new Button("设为当前目录");
         setSharedBtn.getStyleClass().add(Styles.BUTTON_OUTLINED);
         setSharedBtn.setMinWidth(Region.USE_PREF_SIZE); // 防止按钮被压缩
-        setSharedBtn.setOnAction(e -> handleSetCurrentAsShared());
+        setSharedBtn.setOnAction(e -> applyNewSharedDirectory(currentBrowsingDir));
 
         box.getChildren().addAll(label, sharedPathLabel, openBtn,setSharedBtn);
         return box;
@@ -185,6 +185,8 @@ public class LocalShareView {
 
     private TableView<FileItem> createFileTable() {
         TableView<FileItem> table = new TableView<>();
+        Label emptyLabel = new Label("文件夹为空");
+        table.setPlaceholder(emptyLabel);
         table.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY);
         table.getStyleClass().add(Styles.STRIPED);
         table.getStyleClass().add(Styles.ELEVATED_1);
@@ -209,6 +211,7 @@ public class LocalShareView {
                 }
             }
         });
+        nameCol.setMinWidth(80);
         nameCol.setReorderable(false);
 
         TableColumn<FileItem, String> sizeCol = new TableColumn<>("大小");
@@ -263,31 +266,32 @@ public class LocalShareView {
     // ================= 逻辑处理 =================
 
 
-    private void handleSetCurrentAsShared() {
-        if (currentBrowsingDir == null || !currentBrowsingDir.exists()) return;
-        AppConfig.getInstance().setRootPath(currentBrowsingDir.getAbsolutePath());
-        sharedPathLabel.setText(currentBrowsingDir.getAbsolutePath());
+    private void applyNewSharedDirectory(File dir) {
+        if (dir == null || !dir.exists()) return;
 
-        String newPath = currentBrowsingDir.getAbsolutePath();
+        String path = dir.getAbsolutePath();
+
+        // 1. 更新配置和顶部标签
+        AppConfig.getInstance().setRootPath(path);
+        sharedPathLabel.setText(path);
+
+        // 2. 处理历史记录下拉框逻辑
         ObservableList<String> history = historyBox.getItems();
-
-        // 逻辑：如果已存在，先删除（为了把它移到最前面）；如果不存在且满5条，删最后一条
-        if (history.contains(newPath)) {
-            history.remove(newPath);
-        } else {
-            if (history.size() >= 5) {
-                history.remove(history.size() - 1); // 删掉最旧的
-            }
+        if (history.contains(path)) {
+            history.remove(path);
+        } else if (history.size() >= 5) {
+            history.remove(history.size() - 1);
         }
-        // 插到第一位
-        history.add(0, newPath);
+        history.add(0, path);
         historyBox.getSelectionModel().select(0);
-        String historyStr = String.join(";", historyBox.getItems());
-        AppConfig.getInstance().setLocalShareHistory(historyStr);
-        // 选中它
-        MessageUtils.showToast("已将共享根目录设为当前目录！");
-    }
 
+        // 3. 持久化历史记录到配置文件
+        String historyStr = String.join(";", history);
+        AppConfig.getInstance().setLocalShareHistory(historyStr);
+
+        // 4. 提示
+        MessageUtils.showToast("共享目录已更新");
+    }
     private void refreshFileList(File dir) {
         if (dir == null || !dir.exists() || !dir.isDirectory()) {
             File userHome = new File(System.getProperty("user.home"));
@@ -322,9 +326,19 @@ public class LocalShareView {
 
     private void handleChooseDirectory() {
         DirectoryChooser dc = new DirectoryChooser();
-        if (currentBrowsingDir != null && currentBrowsingDir.exists()) dc.setInitialDirectory(currentBrowsingDir);
+        dc.setTitle("选择共享根目录");
+        if (currentBrowsingDir != null && currentBrowsingDir.exists()) {
+            dc.setInitialDirectory(currentBrowsingDir);
+        }
+
         File selected = dc.showDialog(view.getScene().getWindow());
-        if (selected != null) refreshFileList(selected);
+        if (selected != null) {
+            // 1. 刷新下方正在浏览的列表，让用户看到选中的内容
+            refreshFileList(selected);
+
+            // 2. 【核心复u】直接应用刚才提取的共享设置逻辑
+            applyNewSharedDirectory(selected);
+        }
     }
 
     private void navigateUp() {

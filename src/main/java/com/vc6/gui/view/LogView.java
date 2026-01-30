@@ -2,6 +2,7 @@ package com.vc6.gui.view;
 
 import atlantafx.base.theme.Styles;
 import com.vc6.gui.component.LogPanel;
+import com.vc6.utils.MessageUtils;
 import javafx.geometry.Insets;
 import javafx.scene.control.Button;
 import javafx.scene.control.Label;
@@ -38,6 +39,17 @@ public class LogView {
         javafx.scene.layout.Region spacer = new javafx.scene.layout.Region();
         HBox.setHgrow(spacer, Priority.ALWAYS);
 
+        Button openLogBtn = new Button("打开日志文件夹");
+        openLogBtn.setOnAction(e -> {
+            try {
+                File logDir = new File("logs");
+                if (!logDir.exists()) logDir.mkdirs();
+                java.awt.Desktop.getDesktop().open(logDir);
+            } catch (Exception ex) {
+                MessageUtils.showToast("打开失败");
+            }
+        });
+
         Button clearBtn = new Button("清空日志");
         clearBtn.setOnAction(e -> {
             logArea.clear();
@@ -47,7 +59,7 @@ public class LogView {
         Button exportBtn = new Button("导出...");
         exportBtn.setOnAction(e -> handleExport());
 
-        topBar.getChildren().addAll(title, spacer, clearBtn, exportBtn);
+        topBar.getChildren().addAll(title, spacer, openLogBtn,clearBtn, exportBtn);
         view.setTop(topBar);
 
         // 中间日志框

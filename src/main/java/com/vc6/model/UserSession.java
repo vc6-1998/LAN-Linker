@@ -8,7 +8,8 @@ public class UserSession {
     private final StringProperty deviceName = new SimpleStringProperty();
     private final StringProperty nickname = new SimpleStringProperty();
     private final LongProperty lastActive = new SimpleLongProperty();
-    private final DoubleProperty currentUploadProgress = new SimpleDoubleProperty(-1);
+    private final BooleanProperty valuable = new SimpleBooleanProperty(false);
+    private boolean isValuable = false;
 
     public UserSession(String userId, String ip, String deviceName) {
         this.userId = userId;
@@ -38,11 +39,11 @@ public class UserSession {
 
     // --- LastActive 属性的方法 ---
     public long getLastActive() { return lastActive.get(); }
+    public void setLastActive(long time) { this.lastActive.set(time); }
     public void updateLastActive() { this.lastActive.set(System.currentTimeMillis()); }
     public LongProperty lastActiveProperty() { return lastActive; }
 
-    // --- UploadProgress 属性的方法 ---
-    public double getCurrentUploadProgress() { return currentUploadProgress.get(); }
-    public void setCurrentUploadProgress(double value) { this.currentUploadProgress.set(value); }
-    public DoubleProperty currentUploadProgressProperty() { return currentUploadProgress; }
+    public boolean isValuable() { return valuable.get(); }
+    public void setValuable(boolean value) { this.valuable.set(value); }
+    public BooleanProperty valuableProperty() { return valuable; }
 }

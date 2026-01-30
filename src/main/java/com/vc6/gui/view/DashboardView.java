@@ -36,7 +36,6 @@ public class DashboardView {
     // 连接卡片组件 (双态)
     private VBox infoBox;      // 右侧信息容器
     private ImageView qrView;  // 左侧图片容器
-    private Label infoTitle;   // 卡片标题
 
     // 流量图表
     private AreaChart<Number, Number> trafficChart;
@@ -218,7 +217,7 @@ public class DashboardView {
         // 2. 启动后台线程查 IP 和 端口
         new Thread(() -> {
             String ip = IpUtils.getLocalIp();
-            String host = IpUtils.getHostName();
+            String host = AppConfig.getInstance().getdeviceName();
             int port = AppConfig.getInstance().getPort();
             boolean available = IpUtils.isPortAvailable(port);
 

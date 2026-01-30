@@ -11,8 +11,8 @@
 }
 
 /* 如果你也想让列表行 (TableView/ListView) 悬停时变手型，加上这个 */
-.table-row-cell:filled:hover{
+/*.table-row-cell:filled:hover{*/
 
-/*.list-cell:filled:hover {*/
-    -fx-cursor: hand;
-}
+/*!*.list-cell:filled:hover {*!*/
+/*    -fx-cursor: hand;*/
+/*}*/

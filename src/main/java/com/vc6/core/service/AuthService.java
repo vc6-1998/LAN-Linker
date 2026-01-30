@@ -32,24 +32,23 @@ public class AuthService {
             ip = addr.getAddress().getHostAddress();
         }
 
+        // 1. 尝试从浏览器拿身份证 (UID)
         String uid = getUidFromCookie(req);
         UserSession session = null;
 
-        // 1. 尝试找回老会话 (通过 UID 或 IP)
         if (uid != null) {
-            session = SessionManager.getInstance().getSession(uid);
-        }
-        if (session == null) {
+            session = SessionManager.getInstance().getOrCreateSession(uid, ip, req.headers().get(HttpHeaderNames.USER_AGENT));
+        } else {
             session = SessionManager.getInstance().findSessionByIp(ip);
         }
 
-        // 2. 如果没找到，创建新会话
+        // 3. 确实是第一次来的陌生人
         if (session == null) {
             uid = java.util.UUID.randomUUID().toString().substring(0, 8);
             String ua = req.headers().get(HttpHeaderNames.USER_AGENT);
             session = SessionManager.getInstance().getOrCreateSession(uid, ip, ua);
 
-            // 种下 Cookie
+            // 种下永久 UID Cookie
             Cookie c = new DefaultCookie("LAN_LINKER_UID", uid);
             c.setMaxAge(60 * 60 * 24 * 365);
             c.setPath("/");
@@ -57,9 +56,7 @@ public class AuthService {
             resp.headers().add(HttpHeaderNames.SET_COOKIE, ServerCookieEncoder.LAX.encode(c));
         }
 
-        // 3. 更新活跃时间
         session.updateLastActive();
-
         return session;
     }
 
@@ -86,7 +83,15 @@ public class AuthService {
 
     public boolean isConfiguredAndLoggedIn(FullHttpRequest req) {
         String serverPin = AppConfig.getInstance().getRemotePin();
-        if (serverPin == null || serverPin.trim().isEmpty()) return true;
+        if (serverPin == null || serverPin.trim().isEmpty() || !AppConfig.getInstance().isGlobalAuthEnabled()) {
+            return true;
+        }
+
+        String uid = getUidFromCookie(req);
+        UserSession session = SessionManager.getInstance().getSession(uid);
+
+        if (session != null && !session.isValuable())
+            return false;
 
         String cookieHeader = req.headers().get(HttpHeaderNames.COOKIE);
         if (cookieHeader == null) return false;
@@ -111,14 +116,18 @@ public class AuthService {
         cookie.setPath("/");
         cookie.setHttpOnly(true);
         cookie.setSecure(false);
-        // 【核心修改】根据配置设置有效期
-        int days = AppConfig.getInstance().getSessionExpiryDays();
-        if (days == 0) {
-            // 设置为 -1，浏览器关闭时自动删除 Cookie
-            cookie.setMaxAge(-1);
-        } else {
-            // 转换为秒
-            cookie.setMaxAge(60 * 60 * 24 * days);
+
+        int expiryTime = AppConfig.getInstance().getSessionExpiryTime();
+        if (expiryTime  == 1) {
+            cookie.setMaxAge(60*60);
+        } else if (expiryTime == 2) {
+            cookie.setMaxAge(60*60*24);
+        } else if (expiryTime == 3) {
+            cookie.setMaxAge(60*60*24*7);
+        } else if (expiryTime == 4) {
+            cookie.setMaxAge(60*60*24*30);
+        } else if (expiryTime == 5) {
+            cookie.setMaxAge(60*60*24*365);
         }
 
         return ServerCookieEncoder.LAX.encode(cookie);

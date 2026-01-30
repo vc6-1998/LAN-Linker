@@ -15,10 +15,7 @@ import java.io.File;
 public class RemoteDiskView {
 
     private final BorderPane view;
-    private PasswordField pinField;
     private TableView<DriveInfo> driveTable;
-    private static final String SVG_SHIELD = "M8.5 0.75a.75.75 0 0 1 .5 0l6.5 2.5a.75.75 0 0 1 .5.7V9a8 8 0 0 1-5.1 7.42l-2 0.82a.75.75 0 0 1-.6 0l-2-0.82A8 8 0 0 1 1 9V4a.75.75 0 0 1 .5-.7l6.5-2.5z";
-
 
     public RemoteDiskView() {
         this.view = new BorderPane();
@@ -42,10 +39,7 @@ public class RemoteDiskView {
         labelBox.setAlignment(Pos.CENTER_LEFT);
         Label driveLabel = new Label("本机磁盘概览:");
         driveLabel.getStyleClass().add(Styles.TEXT_BOLD);
-        Button refreshBtn = new Button("⟳"); // 简单刷新图标
-        refreshBtn.getStyleClass().addAll(Styles.BUTTON_CIRCLE, Styles.FLAT);
-        refreshBtn.setOnAction(e -> refreshDriveList());
-        labelBox.getChildren().addAll(driveLabel, refreshBtn);
+        labelBox.getChildren().addAll(driveLabel);
 
         driveTable = createDriveTable();
         Platform.runLater(() -> {
@@ -116,6 +110,7 @@ public class RemoteDiskView {
      */
     private TableView<DriveInfo> createDriveTable() {
         TableView<DriveInfo> table = new TableView<>();
+        table.setSelectionModel(null);
         table.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY);
         table.getStyleClass().addAll(Styles.STRIPED, Styles.ELEVATED_1);
         table.setStyle("-fx-background-radius: 8;");
@@ -123,16 +118,19 @@ public class RemoteDiskView {
 
         TableColumn<DriveInfo, String> nameCol = new TableColumn<>("盘符");
         nameCol.setCellValueFactory(data -> new SimpleStringProperty(data.getValue().path));
+        nameCol.setMinWidth(120);
         nameCol.setReorderable(false);
 
         TableColumn<DriveInfo, String> totalCol = new TableColumn<>("总容量");
         totalCol.setCellValueFactory(data -> new SimpleStringProperty(data.getValue().totalSpace));
         totalCol.setStyle("-fx-alignment: CENTER_RIGHT;");
+        totalCol.setMinWidth(120);
         totalCol.setReorderable(false);
 
         TableColumn<DriveInfo, String> freeCol = new TableColumn<>("剩余空间");
         freeCol.setCellValueFactory(data -> new SimpleStringProperty(data.getValue().freeSpace));
         freeCol.setStyle("-fx-alignment: CENTER_RIGHT;");
+        freeCol.setMinWidth(120);
         freeCol.setReorderable(false);
 
         table.getColumns().addAll(nameCol, freeCol, totalCol);

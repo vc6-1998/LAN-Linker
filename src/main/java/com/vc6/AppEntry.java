@@ -2,7 +2,6 @@ package com.vc6;
 
 import atlantafx.base.theme.PrimerDark;
 import atlantafx.base.theme.PrimerLight;
-import com.vc6.core.NettyServer;
 import com.vc6.core.persistence.ConfigStore;
 import com.vc6.gui.MainStage;
 import com.vc6.model.AppConfig;
@@ -13,15 +12,23 @@ import javafx.stage.Stage;
 
 import javax.imageio.ImageIO;
 import java.awt.*;
+import java.io.IOException;
+import java.net.InetAddress;
+import java.net.ServerSocket;
 import java.net.URL;
+import java.net.Socket;
 
 public class AppEntry extends Application {
 
-    private static final java.io.File LOCK_FILE = new java.io.File(System.getProperty("java.io.tmpdir"), "lanlinker_instance.lock");
-    private static java.io.RandomAccessFile randomAccessFile;
-    private static java.nio.channels.FileLock fileLock;
+
+    private static final int INSTANCE_PORT = 59999; // 实例唤醒监听端口
+    private static ServerSocket instanceSocket;
+    private static Stage globalStage; // 静态引用，用于被后台线程唤起
+
     @Override
     public void start(Stage primaryStage) {
+
+        globalStage = primaryStage; // 存入静态引用
         ConfigStore.load();
 
         boolean isDark = AppConfig.getInstance().isDarkMode();
@@ -54,6 +61,43 @@ public class AppEntry extends Application {
         }
     }
 
+    private static boolean checkAndWakeExistingInstance() {
+        try {
+            // 尝试绑定本地 59999 端口
+            instanceSocket = new ServerSocket(INSTANCE_PORT, 0, InetAddress.getByName("127.0.0.1"));
+
+            // 绑定成功，启动监听线程，等待后来者的唤醒信号
+            Thread listener = new Thread(() -> {
+                while (!instanceSocket.isClosed()) {
+                    try (Socket ignored = instanceSocket.accept()) {
+                        // 只要有连接进来，说明有人想唤醒我
+                        Platform.runLater(AppEntry::showWindow);
+                    } catch (IOException e) {
+                        break;
+                    }
+                }
+            });
+            listener.setDaemon(true);
+            listener.start();
+            return true; // 绑定成功，我是主实例
+
+        } catch (IOException e) {
+            // 绑定失败，说明已经有一个主实例了
+            try (Socket socket = new Socket("127.0.0.1", INSTANCE_PORT)) {
+                // 向主实例发个信号就走
+                socket.getOutputStream().write(1);
+            } catch (IOException ignored) {}
+            return false; // 我是副实例，应该退出
+        }
+    }
+
+    private static void showWindow() {
+        if (globalStage != null) {
+            if (globalStage.isIconified()) globalStage.setIconified(false); // 取消最小化
+            globalStage.show();
+            globalStage.toFront(); // 置顶显示
+        }
+    }
     /**
      * 【核心修复】注册所有属性的监听器
      * 只要这些值发生变化，立刻写入磁盘
@@ -75,11 +119,12 @@ public class AppEntry extends Application {
         config.maxTextLengthProperty().addListener(o -> ConfigStore.save());
         config.isDarkModeProperty().addListener(o -> ConfigStore.save());
         config.uiScalePercentProperty().addListener(o -> ConfigStore.save());
-        config.sessionExpiryDaysProperty().addListener(o -> ConfigStore.save());
-        config.sessionExpiryDaysProperty().addListener(o -> ConfigStore.save());
+        config.sessionExpiryTimeProperty().addListener(o -> ConfigStore.save());
+        config.sessionExpiryTimeProperty().addListener(o -> ConfigStore.save());
         config.localShareHistoryProperty().addListener(o -> ConfigStore.save());
         config.debugModeProperty().addListener(o -> ConfigStore.save());
-        config.webTitleProperty().addListener(o -> ConfigStore.save());
+        config.deviceNameProperty().addListener(o -> ConfigStore.save());
+        config.quickShareExpireHoursProperty().addListener(o -> ConfigStore.save());
     }
 
     private void applyUiScale(javafx.scene.Node root) {
@@ -151,6 +196,8 @@ public class AppEntry extends Application {
     private void stopApp() {
         try {
             com.vc6.core.NettyServer.getInstance().stop();
+            com.vc6.core.service.DiscoveryService.getInstance().stop();
+            if (instanceSocket != null) instanceSocket.close();
         } catch (Exception e) {
             e.printStackTrace();
         }
@@ -158,26 +205,12 @@ public class AppEntry extends Application {
         System.exit(0);
     }
 
-    private static boolean isAppRunning() {
-        try {
-            // 尝试锁定文件
-            randomAccessFile = new java.io.RandomAccessFile(LOCK_FILE, "rw");
-            fileLock = randomAccessFile.getChannel().tryLock();
-            // 如果拿不到锁 (null)，说明被占用了
-            return fileLock == null;
-        } catch (Exception e) {
-            return true; // 出错也视为已运行，保险起见
-        }
-    }
+
     public static void main(String[] args) {
 
-        if (isAppRunning()) {
-            // 弹窗提示 (使用 Swing，因为此时 JavaFX 还没启动)
-            javax.swing.JOptionPane.showMessageDialog(null,
-                    "程序已在运行中！\n请检查右下角托盘图标或任务管理器。",
-                    "重复启动",
-                    javax.swing.JOptionPane.WARNING_MESSAGE);
-            System.exit(0);
+        if (!checkAndWakeExistingInstance()) {
+            // 唤醒动作在 check 内部已经做了，这里直接退出自己
+            System.out.println("检测到已有实例运行，已发送唤醒信号。");
             return;
         }
         launch(args);

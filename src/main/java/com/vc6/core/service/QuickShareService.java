@@ -91,10 +91,35 @@ public class QuickShareService {
         }
     }
 
+
+    public void cleanExpiredFiles() {
+        int expireHours = AppConfig.getInstance().getQuickShareExpireHours();
+        if (expireHours <= 0) return; // 如果设为 0 (永不)，则直接跳过
+
+        long expireMs = expireHours * 60L * 60L * 1000L;
+        long now = System.currentTimeMillis();
+
+        File dir = new File(AppConfig.getInstance().getQuickSharePath());
+        File[] files = dir.listFiles();
+
+        if (files != null) {
+            for (File f : files) {
+                long lastMod = f.lastModified();
+                // 核心判定：必须 lastMod > 0 且 超过有效期
+                if (lastMod > 0 && (now - lastMod > expireMs)) {
+                    if (f.delete()) {
+                        System.out.println("自动清理过期文件: " + f.getName());
+                    }
+                }
+            }
+        }
+    }
     /**
      * 获取文件列表 (已排序)
      */
     public List<File> getFeedList() {
+
+        cleanExpiredFiles();
         File dir = new File(AppConfig.getInstance().getQuickSharePath());
         if (!dir.exists()) return List.of();
 

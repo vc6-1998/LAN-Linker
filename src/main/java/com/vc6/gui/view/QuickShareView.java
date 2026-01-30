@@ -172,7 +172,7 @@ public class QuickShareView {
             public void run() {
                 if (view.getScene() != null) refreshFeed();
             }
-        }, 2000, 3000);
+        }, 1000, 2000);
     }
 
 

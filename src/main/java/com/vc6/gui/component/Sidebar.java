@@ -19,12 +19,14 @@ public class Sidebar {
 
     // 【核心修改 1】把所有页面提升为成员变量，只创建一次
     private final DashboardView dashboardView;
+    private final SessionsView sessionsView;
+    private final RadarView radarView;
     private final QuickShareView quickShareView;
     private final LocalShareView localShareView;
     private final RemoteDiskView remoteDiskView;
     private final LogView logView;
     private final SettingsView settingsView;
-    private final SessionsView sessionsView;
+
 
     private Button activeBtn;
 
@@ -36,6 +38,7 @@ public class Sidebar {
         // 这样它们的状态就会一直保存在内存里，直到程序关闭
         this.dashboardView = new DashboardView();
         this.sessionsView = new SessionsView();
+        this.radarView = new RadarView();
         this.quickShareView = new QuickShareView();
         this.localShareView = new LocalShareView();
         this.remoteDiskView = new RemoteDiskView();
@@ -58,17 +61,21 @@ public class Sidebar {
         // --- 导航区 1: 总览 ---
         Label group1 = createGroupLabel("控制台");
         Button btnDash = createBtn("仪表盘");
-        // 【核心修改 3】点击时直接使用已经缓存好的 view
         btnDash.setOnAction(e -> {
             mainStage.switchView(dashboardView.getView());
             dashboardView.refresh();
             activate(btnDash);
         });
-        Button btnUser = createBtn("在线设备监控");
-        // 【核心修改 3】点击时直接使用已经缓存好的 view
+        Button btnUser = createBtn("访问设备记录");
         btnUser.setOnAction(e -> {
             mainStage.switchView(sessionsView.getView());
             activate(btnUser);
+        });
+        Button btnRadar = createBtn("连接其它服务");
+        // 【核心修改 3】点击时直接使用已经缓存好的 view
+        btnRadar.setOnAction(e -> {
+            mainStage.switchView(radarView.getView());
+            activate(btnRadar);
         });
 
         // --- 导航区 2: 功能模式 ---
@@ -108,7 +115,7 @@ public class Sidebar {
 
         view.getChildren().addAll(
                 logo, new Separator(),
-                group1, btnDash, btnUser,
+                group1, btnDash, btnUser,btnRadar,
                 new Separator(),
                 group2, btnQuick, btnLocal, btnRemote,
                 new Separator(),
