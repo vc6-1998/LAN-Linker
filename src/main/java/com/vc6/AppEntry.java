@@ -4,6 +4,7 @@ import atlantafx.base.theme.PrimerDark;
 import atlantafx.base.theme.PrimerLight;
 import com.vc6.core.persistence.ConfigStore;
 import com.vc6.gui.MainStage;
+import com.vc6.gui.component.LogPanel;
 import com.vc6.model.AppConfig;
 import com.vc6.model.ServerMode;
 import javafx.application.Application;
@@ -208,6 +209,7 @@ public class AppEntry extends Application {
 
     public static void main(String[] args) {
 
+        LogPanel.redirectSystemOutputs();
         if (!checkAndWakeExistingInstance()) {
             // 唤醒动作在 check 内部已经做了，这里直接退出自己
             System.out.println("检测到已有实例运行，已发送唤醒信号。");

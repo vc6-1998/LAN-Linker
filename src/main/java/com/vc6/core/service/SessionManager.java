@@ -86,10 +86,6 @@ public class SessionManager {
         s.lastActiveProperty().addListener(o -> saveUsers()); // 监听时间变化
     }
 
-    public UserSession getSession(String uid) {
-        return sessions.get(uid);
-    }
-
     public UserSession findSessionByIp(String ip) {
         for (UserSession s : sessions.values()) {
             if (s.getIp().equals(ip)) return s;

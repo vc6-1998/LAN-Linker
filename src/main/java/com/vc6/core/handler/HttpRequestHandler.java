@@ -61,8 +61,9 @@ public class HttpRequestHandler extends SimpleChannelInboundHandler<FullHttpRequ
         boolean isGlobalAuth = AppConfig.getInstance().isGlobalAuthEnabled();
         ServerMode mode = AppConfig.getInstance().getServerMode();
         boolean needsAuth = isGlobalAuth || (mode == ServerMode.REMOTE_DISK);
+        String cookieHeader = req.headers().get(HttpHeaderNames.COOKIE);
 
-        if (needsAuth && !authService.isConfiguredAndLoggedIn(req)) {
+        if (needsAuth && !authService.isConfiguredAndLoggedIn(cookieHeader, user)) {
             LogPanel.log("[Auth] "+getCurrentUserID(ctx)+": 拦截未授权访问: " + decodedUri);
 
             if (user.isValuable()) {
@@ -230,5 +231,15 @@ public class HttpRequestHandler extends SimpleChannelInboundHandler<FullHttpRequ
         if (user == null) return "Unknown";
 
         return user.getUserId();
+    }
+    @Override
+    public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) {
+        // 【核心】捕获所有未被处理的异常并打印到日志页
+        LogPanel.log("🚨 网络层崩溃: " + cause.toString());
+        cause.printStackTrace(); // 这行现在会被重定向到日志页显示
+
+        if (ctx.channel().isActive()) {
+            fileService.sendError(ctx, HttpResponseStatus.INTERNAL_SERVER_ERROR, cause.getMessage());
+        }
     }
 }

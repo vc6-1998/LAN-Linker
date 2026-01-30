@@ -81,21 +81,16 @@ public class AuthService {
     // 下面是原有的 PIN 码登录逻辑 (保持不变)
     // ==========================================
 
-    public boolean isConfiguredAndLoggedIn(FullHttpRequest req) {
+    public boolean isConfiguredAndLoggedIn(String cookieHeader, UserSession user) {
         String serverPin = AppConfig.getInstance().getRemotePin();
         if (serverPin == null || serverPin.trim().isEmpty() || !AppConfig.getInstance().isGlobalAuthEnabled()) {
             return true;
         }
 
-        String uid = getUidFromCookie(req);
-        UserSession session = SessionManager.getInstance().getSession(uid);
-
-        if (session != null && !session.isValuable())
+        if (user != null && !user.isValuable())
             return false;
 
-        String cookieHeader = req.headers().get(HttpHeaderNames.COOKIE);
         if (cookieHeader == null) return false;
-
         Set<Cookie> cookies = ServerCookieDecoder.LAX.decode(cookieHeader);
         for (Cookie cookie : cookies) {
             if (AUTH_COOKIE.equals(cookie.name())) {

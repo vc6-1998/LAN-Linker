@@ -79,4 +79,30 @@ public class LogPanel {
             buffer.setLength(0);
         }
     }
+
+    public static void redirectSystemOutputs() {
+        // 重定向标准输出 (System.out)
+        PrintStream outStream = new PrintStream(new OutputStream() {
+            @Override
+            public void write(int b) {} // 不用这个
+            @Override
+            public void write(byte[] b, int off, int len) {
+                String msg = new String(b, off, len, StandardCharsets.UTF_8);
+                if (!msg.trim().isEmpty()) log("[STDOUT] " + msg.trim());
+            }
+        });
+        System.setOut(outStream);
+
+        // 重定向标准错误 (System.err) - 这是抓 Bug 的关键！
+        PrintStream errStream = new PrintStream(new OutputStream() {
+            @Override
+            public void write(int b) {}
+            @Override
+            public void write(byte[] b, int off, int len) {
+                String msg = new String(b, off, len, StandardCharsets.UTF_8);
+                if (!msg.trim().isEmpty()) log("[STDERR] " + msg.trim());
+            }
+        });
+        System.setErr(errStream);
+    }
 }
