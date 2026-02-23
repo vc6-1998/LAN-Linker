@@ -1,0 +1,241 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-bs-theme="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LAN Linker - 高性能局域网文件传输中枢</title>
+    <link rel="icon" type="image/x-icon" href="../src/main/resources/icon.png">
+    <!-- 引入 Bootstrap 5.3 CSS -->
+    <link href="../src/main/resources/static/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="../src/main/resources/static/bootstrap-icons.css">
+
+    <style>
+        :root {
+            --primary-blue: #0d6efd;
+            --primary-glow: rgba(13, 110, 253, 0.4);
+            --bg-dark: #0b0f19;
+            --card-bg: #151b28;
+        }
+
+        body {
+            background-color: var(--bg-dark);
+            font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+            overflow-x: hidden;
+        }
+
+        /* 毛玻璃导航栏 */
+        .navbar {
+            background: rgba(11, 15, 25, 0.8) !important;
+            backdrop-filter: blur(10px);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+        }
+
+        /* 渐变标题文本 */
+        .gradient-text {
+            background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            font-weight: 800;
+        }
+
+        /* Hero 区域首屏背景光晕 */
+        .hero-section {
+            position: relative;
+            padding: 120px 0 60px;
+        }
+        .hero-glow {
+            position: absolute;
+            top: 20%;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 600px;
+            height: 400px;
+            background: radial-gradient(circle, var(--primary-glow) 0%, rgba(0,0,0,0) 70%);
+            z-index: -1;
+            filter: blur(50px);
+        }
+
+        /* 截图悬浮动效与发光 (适应新版浅色截图) */
+        .hero-img-container img, .showcase-pc-img {
+            border-radius: 8px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.8), 0 0 0 1px rgba(255,255,255,0.15);
+            transition: transform 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+        .hero-img-container img:hover, .showcase-pc-img:hover {
+            transform: translateY(-8px);
+        }
+
+        /* 手机端截图特殊处理 (加个深色边框模拟手机) */
+        .showcase-mobile-img {
+            border-radius: 20px;
+            box-shadow: 0 15px 35px rgba(0,0,0,0.6), 0 0 0 6px #1a1d24;
+            max-width: 240px;
+            transition: transform 0.4s ease;
+        }
+        .showcase-mobile-img:hover {
+            transform: translateY(-8px) scale(1.02);
+        }
+
+
+        /* 技术栈徽章 */
+        .tech-badge {
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            padding: 8px 16px;
+            border-radius: 50px;
+            font-size: 0.9rem;
+            color: #ddd;
+            margin: 5px;
+            display: inline-block;
+        }
+    </style>
+</head>
+<body>
+
+<!-- 导航栏 -->
+<nav class="navbar navbar-expand-lg fixed-top navbar-dark">
+    <div class="container">
+        <a class="navbar-brand fw-bold d-flex align-items-center gap-2" href="#">
+            <i class="bi bi-hdd-network text-primary"></i> LAN Linker
+        </a>
+        <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+            <span class="navbar-toggler-icon"></span>
+        </button>
+        <div class="collapse navbar-collapse" id="navbarNav">
+            <ul class="navbar-nav ms-auto">
+                <li class="nav-item"><a class="nav-link" href="#showcase">核心功能</a></li>
+                <li class="nav-item"><a class="nav-link" href="#tech">技术栈</a></li>
+                <li class="nav-item ms-lg-3">
+                    <a class="btn btn-primary btn-sm mt-1" href="https://github.com/vc6-1998/LAN-Linker/releases" target="_blank">
+                        <i class="bi bi-download"></i> 获取全部版本
+                    </a>
+                </li>
+            </ul>
+        </div>
+    </div>
+</nav>
+
+<!-- 首屏 Hero -->
+<section class="hero-section text-center">
+    <div class="hero-glow"></div>
+    <div class="container">
+        <h1 class="display-3 fw-bold mb-4">你的电脑，就是最高效的<br><span class="gradient-text">局域网传输枢纽</span></h1>
+        <p class="lead text-secondary mb-5 mx-auto" style="max-width: 700px;">
+            基于 JavaFX 与 Netty 打造的高性能跨端利器。<br>
+            同一网络下仅凭浏览器，扫码即可实现极速文件交换与设备管理。
+        </p>
+        <div class="d-flex justify-content-center gap-3 mb-5">
+            <a href="https://github.com/vc6-1998/LAN-Linker/releases/download/2.0/LAN-Linker.v2.0.zip" class="btn btn-primary btn-lg px-4 rounded-pill">
+                <i class="bi bi-windows"></i> 下载 Windows 版
+            </a>
+            <a href="https://github.com/vc6-1998/LAN-Linker" class="btn btn-outline-light btn-lg px-4 rounded-pill">
+                <i class="bi bi-github"></i> 查看源码
+            </a>
+        </div>
+
+        <!-- 主控台截图 -->
+        <div class="hero-img-container mt-4 px-lg-5">
+            <img src="dashboard-pc.png" alt="Dashboard" class="img-fluid w-100" style="max-width: 900px;">
+        </div>
+    </div>
+</section>
+
+
+<!-- 核心特性区 (恢复第一版的三卡片) -->
+<section id="features" class="py-5 mt-5">
+    <div class="container">
+        <div class="text-center mb-5">
+            <h2 class="fw-bold">无缝连接，随心掌控</h2>
+            <p class="text-secondary">三大核心模式，满足你对局域网传输的所有想象</p>
+        </div>
+        <div class="row g-4 text-start">
+            <div class="col-md-4">
+                <div class="feature-box">
+                    <i class="bi bi-lightning-charge-fill fs-1 text-warning mb-3 d-block"></i>
+                    <h4 class="fw-bold">⚡ 极速快传</h4>
+                    <p class="text-secondary mt-2">最高效的“跨端剪贴板”。支持文本直发、拖拽上传、智能识别 Ctrl+V（剪贴板截图直接转码）。自动清理机制，拒绝垃圾文件堆积。</p>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="feature-box">
+                    <i class="bi bi-folder-symlink-fill fs-1 text-info mb-3 d-block"></i>
+                    <h4 class="fw-bold">📂 目录共享</h4>
+                    <p class="text-secondary mt-2">一键将电脑中的特定文件夹挂载到网页端。分离浏览逻辑，支持权限拉杆（仅浏览/允许写入），安全又轻量。</p>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="feature-box">
+                    <i class="bi bi-shield-lock-fill fs-1 text-success mb-3 d-block"></i>
+                    <h4 class="fw-bold">🛡️ 远程全盘</h4>
+                    <p class="text-secondary mt-2">本地共享的 Plus 版本。配合强制 PIN 码身份校验，直接暴露全盘分区给移动端，躺在床上也能管理电脑里的海量资源。</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- 界面展示区 (恢复第一版的大图对比结构) -->
+<section id="showcase" class="py-5 mb-4" style="background: rgba(255,255,255,0.02);">
+    <div class="container pt-4">
+        <div class="text-center mb-5 pb-3">
+            <h2 class="fw-bold">电脑端管理，手机端丝滑访问</h2>
+            <p class="text-secondary">清爽的桌面端控制台，配合沉浸式深色网页端，操作如行云流水</p>
+        </div>
+
+        <!-- 展示组 1: 极速快传 -->
+        <div class="row align-items-center mb-5 pb-5">
+            <div class="col-lg-8 mb-4 mb-lg-0">
+                <h4 class="mb-4"><i class="bi bi-laptop"></i> PC 服务端：极速快传</h4>
+                <img src="quickshare-pc.png" alt="Quick Share PC" class="img-fluid showcase-pc-img w-100">
+            </div>
+            <div class="col-lg-4 text-center">
+                <h4 class="mb-4"><i class="bi bi-phone"></i> 手机扫码直达</h4>
+                <img src="quickshare-mobile.png" alt="Quick Share Mobile" class="img-fluid showcase-mobile-img">
+            </div>
+        </div>
+
+        <!-- 展示组 2: 目录共享 -->
+        <div class="row align-items-center mb-5 pb-5 flex-lg-row-reverse">
+            <div class="col-lg-8 mb-4 mb-lg-0">
+                <h4 class="mb-4"><i class="bi bi-laptop"></i> PC 服务端：本地目录共享</h4>
+                <img src="localshare-pc.png" alt="Local Share PC" class="img-fluid showcase-pc-img w-100">
+            </div>
+            <div class="col-lg-4 text-center">
+                <h4 class="mb-4"><i class="bi bi-phone"></i> 手机端浏览与操作</h4>
+                <img src="localshare-mobile.png" alt="Local Share Mobile" class="img-fluid showcase-mobile-img">
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- 技术架构 -->
+<section id="tech" class="py-5" style="background: rgba(255,255,255,0.02);">
+    <div class="container text-center">
+        <h2 class="fw-bold mb-4">硬核技术栈</h2>
+        <p class="text-secondary mb-4">无需繁杂配置，纯粹的高性能实现</p>
+        <div class="d-flex flex-wrap justify-content-center gap-2">
+            <span class="tech-badge"><i class="bi bi-cup-hot-fill text-danger"></i> Java 21</span>
+            <span class="tech-badge"><i class="bi bi-rocket-takeoff-fill text-primary"></i> Netty 4.1 (手写 HTTP 协议)</span>
+            <span class="tech-badge"><i class="bi bi-window-sidebar text-info"></i> JavaFX (AtlantaFX UI)</span>
+            <span class="tech-badge"><i class="bi bi-bootstrap-fill text-purple" style="color:#7952b3"></i> Bootstrap 5.3</span>
+            <span class="tech-badge"><i class="bi bi-filetype-js text-warning"></i> Vanilla JS (AJAX 无刷新)</span>
+            <span class="tech-badge"><i class="bi bi-qr-code text-light"></i> ZXing</span>
+        </div>
+    </div>
+</section>
+
+<!-- 页脚 -->
+<footer class="py-4 text-center text-secondary border-top border-secondary border-opacity-25 mt-4">
+    <div class="container">
+        <p class="mb-1 fw-bold">LAN Linker</p>
+        <p class="small mb-2">Designed for Local Network High-Speed Transfer</p>
+        <p class="small mb-0">
+            &copy; 2025-2026 ME | Beijing Institute of Technology | Licensed under MIT
+        </p>
+    </div>
+</footer>
+
+<!-- Bootstrap JS -->
+<script src="../src/main/resources/static/bootstrap.bundle.min.js"></script>
+</body>
+</html>
