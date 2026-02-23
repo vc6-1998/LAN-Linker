@@ -112,16 +112,16 @@
 ---
 ## 界面预览
 
-|   **仪表盘 (Dashboard)**   | *![img_1.png](demo/dashboard-pc.png)*  |
+|   **仪表盘 (Dashboard)**   | *![img_1.png](docs/dashboard-pc.png)*  |
 |:-----------------------:|:--------------------------------------:|
-|  **极速快传(Quick share)**  | *![img_2.png](demo/quickshare-pc.png)* |
-| **本地目录共享(Local share)** | ![img_3.png](demo/localshare-pc.png)*  |
-| **远程全盘访问(Remote Disk)** | *![img_4.png](demo/remotedisk-pc.png)* |
+|  **极速快传(Quick share)**  | *![img_2.png](docs/quickshare-pc.png)* |
+| **本地目录共享(Local share)** | ![img_3.png](docs/localshare-pc.png)*  |
+| **远程全盘访问(Remote Disk)** | *![img_4.png](docs/remotedisk-pc.png)* |
 ### 网页端（这里拿手机演示）
-|  **极速快传**  | ![img_5.png](demo/quickshare-mobile.png) |
+|  **极速快传**  | ![img_5.png](docs/quickshare-mobile.png) |
 |:----------:|:----------------------------------------:|
-| **本地目录共享** | ![img_6.png](demo/localshare-mobile.png) |
-| **远程全盘访问** |       ![img_7.png](demo/remotedisk-mobile.png)       |
+| **本地目录共享** | ![img_6.png](docs/localshare-mobile.png) |
+| **远程全盘访问** |       ![img_7.png](docs/remotedisk-mobile.png)       |
 
 ---
 ## 技术栈
