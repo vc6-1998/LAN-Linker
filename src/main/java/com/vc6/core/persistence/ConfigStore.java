@@ -36,6 +36,7 @@ public class ConfigStore {
             parse(props, "device.name", config::setdeviceName, s -> s);
             parse(props, "network.discovery", config::setDiscoveryEnabled, Boolean::parseBoolean);
             parse(props, "quick.expire_hours", config::setQuickShareExpireHours, Integer::parseInt);
+
         } catch (IOException e) {
             e.printStackTrace();
         }

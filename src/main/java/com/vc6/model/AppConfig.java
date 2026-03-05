@@ -20,7 +20,6 @@ public class AppConfig {
     // --- 系统集成 ---
     private final BooleanProperty minimizeToTray = new SimpleBooleanProperty(true); // 最小化到托盘
 
-
     // --- 快传限制 ---
     private final StringProperty quickSharePath = new SimpleStringProperty(
             new java.io.File(System.getProperty("user.dir"), "quick_share").getAbsolutePath()

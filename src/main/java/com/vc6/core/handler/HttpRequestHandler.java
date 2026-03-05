@@ -36,6 +36,11 @@ public class HttpRequestHandler extends SimpleChannelInboundHandler<FullHttpRequ
             return;
         }
 
+        if ("/manifest.json".equals(rawUri)) {
+            fileService.sendManifest(ctx);
+            return;
+        }
+
         // 2. 身份识别：为每个请求分配/识别 UID
 
         DefaultFullHttpResponse tempResp = new DefaultFullHttpResponse(HttpVersion.HTTP_1_1, HttpResponseStatus.OK);

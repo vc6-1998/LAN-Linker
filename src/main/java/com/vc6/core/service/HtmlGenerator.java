@@ -388,14 +388,29 @@ public class HtmlGenerator {
     // --- 内部 Shell 辅助 ---
     private static String getHead(String subtitle, String nickname) {
         String badgeText = (nickname != null && !nickname.isEmpty()) ? nickname : subtitle;
-        String appTitle = AppConfig.getInstance().getdeviceName();
+        String appTitle = AppConfig.getInstance().getdeviceName(); // 获取动态设备名
+
+        // 注意：String.format 里的顺序是：1.网页标题 2.iOS桌面标题 3.CSS样式 4.导航栏文字 5.右侧徽章文字
         return String.format("""
             <!DOCTYPE html>
             <html lang="zh-CN" data-bs-theme="dark">
             <head>
                 <meta charset="utf-8">
-                <meta name="viewport" content="width=device-width, initial-scale=1.0">
+                <!-- 禁用缩放，呈现原生 App 体验 -->
+                <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
                 <title>%s</title>
+                <link rel="icon" href="/static/icon.png" />
+                
+                <!-- 指向刚才我们在 Netty 中拦截的动态路径 -->
+                <link rel="manifest" href="/manifest.json">
+                <meta name="theme-color" content="#0d1117">
+                
+                <!-- 苹果 iOS 专属 PWA 动态名称支持 -->
+                <meta name="apple-mobile-web-app-capable" content="yes">
+                <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+                <meta name="apple-mobile-web-app-title" content="%s">
+                <link rel="apple-touch-icon" href="/static/icon.png">
+                
                 <link href="/static/bootstrap.min.css" rel="stylesheet">
                 <link href="/static/bootstrap-icons.css" rel="stylesheet">
                 %s
@@ -415,7 +430,7 @@ public class HtmlGenerator {
                     </div>
                 </nav>
                 <div class="container my-4" style="max-width: 900px;" id="main-content">
-            """,appTitle, CUSTOM_CSS, appTitle, badgeText);
+            """, appTitle, appTitle, CUSTOM_CSS, appTitle, badgeText);
     }
 
     private static String getFoot() {

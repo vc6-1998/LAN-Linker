@@ -142,9 +142,7 @@ public class SettingsView {
         // 1.3 系统集成
         SimpleToggleSwitch trayCheck = new SimpleToggleSwitch("关闭主窗口时最小化到托盘");
         trayCheck.selectedProperty().bindBidirectional(AppConfig.getInstance().minimizeToTrayProperty());
-        addGridRow(grid, 3, "关闭设置:", trayCheck);
-
-
+        addGridRow(grid, 3, "托盘设置:", trayCheck);
 
         return grid;
     }
@@ -350,11 +348,10 @@ public class SettingsView {
     private Node createSystemSettings()
     {
         GridPane grid = createGrid();
-        SimpleToggleSwitch debugCheck = new SimpleToggleSwitch("DEBUG 模式 (显示所有请求)");
+        SimpleToggleSwitch debugCheck = new SimpleToggleSwitch("显示所有请求");
         debugCheck.selectedProperty().bindBidirectional(AppConfig.getInstance().debugModeProperty());
         addGridRow(grid, 0, "日志设置:",debugCheck);
 
-//        Label logPathLabel = new Label("运行日志:");
         TextField logPathField = new TextField(new File("logs").getAbsolutePath());
         logPathField.setEditable(false);
         HBox.setHgrow(logPathField, Priority.ALWAYS);
@@ -433,7 +430,7 @@ public class SettingsView {
         helpBtn.getStyleClass().add(Styles.ACCENT);
         helpBtn.setOnAction(e -> showHelpDialog());
 
-        Label appName = new Label("LAN Linker v2.0");
+        Label appName = new Label("LAN Linker v2.1");
         appName.getStyleClass().add(Styles.TITLE_4);
 
         TextFlow desc = new TextFlow(
@@ -448,8 +445,15 @@ public class SettingsView {
             } catch (Exception ex) { ex.printStackTrace(); }
         });
 
+        Hyperlink hubLink = new Hyperlink("下载网站");
+        hubLink.setStyle("-fx-border-color: transparent; -fx-padding: 0;");
+        hubLink.setOnAction(e -> {
+            try {
+                Desktop.getDesktop().browse(java.net.URI.create("https://vc6-1998.github.io/LAN-Linker/"));
+            } catch (Exception ex) { ex.printStackTrace(); }
+        });
 
-        box.getChildren().addAll(helpBtn, new Separator(), appName, desc,gitLink);
+        box.getChildren().addAll(helpBtn, new Separator(), appName, desc,hubLink,gitLink);
         return box;
     }
 

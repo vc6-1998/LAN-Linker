@@ -198,6 +198,7 @@ public class FileService {
             else if (uri.endsWith(".woff")) mimeType = "font/woff";
             else if (uri.endsWith(".woff2")) mimeType = "font/woff2";
             else if (uri.endsWith(".png")) mimeType = "image/png";
+            else if (uri.endsWith(".json")) mimeType = "application/json";
 
             response.headers().set(HttpHeaderNames.CONTENT_TYPE, mimeType);
             response.headers().set(HttpHeaderNames.CONTENT_LENGTH, bytes.length);
@@ -273,6 +274,45 @@ public class FileService {
         }
 
         return user.getUserId();
+    }
+
+    public void sendManifest(ChannelHandlerContext ctx) {
+        // 获取当前你在设置里配的设备名称
+        String appName = AppConfig.getInstance().getdeviceName();
+        // 防止 JSON 格式被特殊符号破坏
+        appName = appName.replace("\"", "\\\"");
+
+        String json = """
+        {
+          "name": "%s",
+          "short_name": "%s",
+          "description": "局域网文件传输中枢",
+          "start_url": "/",
+          "display": "standalone",
+          "background_color": "#0d1117",
+          "theme_color": "#0d1117",
+          "icons": [
+            {
+              "src": "/static/icon.png",
+              "sizes": "192x192",
+              "type": "image/png"
+            },
+            {
+              "src": "/static/icon.png",
+              "sizes": "512x512",
+              "type": "image/png"
+            }
+          ]
+        }
+        """.formatted(appName, appName); // 将名字填入 JSON
+
+        FullHttpResponse response = new DefaultFullHttpResponse(
+                HttpVersion.HTTP_1_1, HttpResponseStatus.OK,
+                Unpooled.copiedBuffer(json, CharsetUtil.UTF_8)
+        );
+        response.headers().set(HttpHeaderNames.CONTENT_TYPE, "application/json; charset=UTF-8");
+        extraHeaders.forEach((k, v) -> response.headers().set(k, v));
+        ctx.writeAndFlush(response).addListener(ChannelFutureListener.CLOSE);
     }
 
 }
